@@ -1,10 +1,27 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import ViolationToolbar from "./components/ViolationToolbar";
 import ImageCanvas from "./components/ImageCanvas";
 import AnnotationPreview from "./components/AnnotationPreview";
 import UploadPanel from "./components/UploadPanel";
 import SaveControls from "./components/SaveControls";
 import "./App.css";
+
+// Universal color map
+const VIOLATION_COLORS = {
+  "Peeling Paint": "#FF0000",
+  "Vehicles on Unpaved": "#00FF00",
+  "Abandoned/Junk Vehicles": "#0000FF",
+  "Overgrown Vegetation": "#FFA500",
+  "Bad Roof": "#800080",
+  "Broken Window": "#008080",
+  "Broken Door": "#FFC0CB",
+  "Rubbish / Garbage": "#808080",
+  "Damaged Walk/Driveway": "#000000",
+  "Damaged Siding / Soffit": "#00FFFF",
+  "Damaged Foundation": "#800000",
+  "Damaged Porch / Steps": "#008000",
+  "Abandoned / Unsafe": "#800000",
+};
 
 function App() {
   const [images, setImages] = useState({});
@@ -13,8 +30,8 @@ function App() {
   const [annotations, setAnnotations] = useState([]);
   const [imageSource, setImageSource] = useState("Upload Images");
 
-  // Ref for ImageCanvas to get base64
-  const canvasRef = useRef(null);
+  // Ref for Stage
+  const stageRef = useRef(null);
 
   const handleClearAll = () => {
     setImages({});
@@ -26,19 +43,18 @@ function App() {
     setAnnotations((prev) => prev.slice(0, prev.length - 1));
   };
 
-  // Convert canvas to base64
   const getCanvasBase64 = () => {
-    if (!canvasRef.current) return null;
-    const canvas = canvasRef.current.querySelector("canvas");
-    if (!canvas) return null;
-    return canvas.toDataURL("image/png").split(",")[1]; // remove data:image/png;base64,
+    if (!stageRef.current) return null;
+    return stageRef.current.toDataURL({ pixelRatio: 1 }).split(",")[1]; // base64 only
   };
 
   const handleSaveJSON = () => {
     if (!selectedImage) return;
 
-    const annotatedImageBase64 = getCanvasBase64(); // get annotated image
-    fetch("https://housing-violations.onrender.com/save", { // replace with your deployed backend URL
+    const annotatedImageBase64 = getCanvasBase64();
+    if (!annotatedImageBase64) return alert("No image to save!");
+
+    fetch("https://housing-violations.onrender.com/save", {  // Replace with your Render backend URL
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -81,8 +97,7 @@ function App() {
             value="Upload Images"
             checked={imageSource === "Upload Images"}
             onChange={(e) => setImageSource(e.target.value)}
-          />{" "}
-          Upload Images
+          /> Upload Images
         </label>
         <label style={{ marginLeft: "20px" }}>
           <input
@@ -90,8 +105,7 @@ function App() {
             value="Load From Folder"
             checked={imageSource === "Load From Folder"}
             onChange={(e) => setImageSource(e.target.value)}
-          />{" "}
-          Load From Folder
+          /> Load From Folder
         </label>
       </div>
 
@@ -119,7 +133,7 @@ function App() {
         </div>
       )}
 
-      <div className="main-content" ref={canvasRef}>
+      <div className="main-content">
         <ViolationToolbar
           selectedViolation={selectedViolation}
           setSelectedViolation={setSelectedViolation}
@@ -132,6 +146,7 @@ function App() {
               annotations={annotations}
               setAnnotations={setAnnotations}
               selectedViolation={selectedViolation}
+              stageRef={stageRef} // pass the stageRef for export
             />
           )}
 
