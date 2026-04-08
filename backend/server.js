@@ -8,7 +8,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ===== Salesforce Auth Variables =====
 let accessToken = null;
 let instanceUrl = null;
 
@@ -24,11 +23,7 @@ async function fetchSalesforceToken() {
     const response = await axios.post(
       'https://login.salesforce.com/services/oauth2/token',
       data,
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      }
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
     );
 
     accessToken = response.data.access_token;
@@ -46,66 +41,58 @@ fetchSalesforceToken();
 // Refresh token every 55 mins
 setInterval(fetchSalesforceToken, 55 * 60 * 1000);
 
-// ===== API Endpoint =====
+// ===== Save JSON + Image Endpoint =====
 app.post('/save', async (req, res) => {
   const payload = req.body;
 
-  // Basic validation
-  if (!payload || !payload.image_id || !payload.annotations) {
-    return res.status(400).json({
-      success: false,
-      error: "Invalid payload",
-    });
+  if (!payload || !payload.image_id || !payload.annotations || !payload.image_data) {
+    return res.status(400).json({ success: false, error: "Invalid payload" });
+  }
+
+  if (!accessToken || !instanceUrl) {
+    return res.status(500).json({ success: false, error: "Salesforce not authenticated yet" });
   }
 
   try {
-    if (!accessToken || !instanceUrl) {
-      return res.status(500).json({
-        success: false,
-        error: "Salesforce not authenticated yet",
-      });
-    }
+    // --- 1. Upload Image to Salesforce ContentVersion ---
+    const contentResponse = await axios.post(
+      `${instanceUrl}/services/data/v58.0/sobjects/ContentVersion`,
+      {
+        Title: payload.image_id,
+        PathOnClient: payload.image_id,
+        VersionData: payload.image_data, // base64 image
+        FirstPublishLocationId: process.env.SF_LIBRARY_ID
+      },
+      { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } }
+    );
 
-    // 🔥 IMPORTANT: Replace this with your actual Salesforce object
-    const sfUrl = `${instanceUrl}/services/data/v58.0/sobjects/Violation__c/`;
+    const contentVersionId = contentResponse.data.id;
+    console.log('✅ Image uploaded:', contentVersionId);
 
-    // 🔥 Payload sent to Salesforce
-    const salesforcePayload = {
-      Name: "Housing Image", // or dynamic if needed
-      JSON_Data__c: JSON.stringify({
-        image_id: payload.image_id,
-        annotations: payload.annotations,
-      }),
+    // --- 2. Save JSON record linked to image ---
+    const sfPayload = {
+      Name: payload.image_id,
+      JSON_Data__c: JSON.stringify({ annotations: payload.annotations }),
       Image_Name__c: payload.image_id,
       Uploaded_At__c: new Date().toISOString().split("T")[0], // YYYY-MM-DD
+      Content_Version_Id__c: contentVersionId // link to uploaded image
     };
 
-    const response = await axios.post(sfUrl, salesforcePayload, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const sfResponse = await axios.post(
+      `${instanceUrl}/services/data/v58.0/sobjects/Housing_Data_Image__c/`,
+      sfPayload,
+      { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } }
+    );
 
-    console.log("✅ Saved to Salesforce:", response.data.id);
+    console.log('✅ JSON + Image record saved:', sfResponse.data.id);
 
-    res.json({
-      success: true,
-      sfId: response.data.id,
-    });
+    res.json({ success: true, sfId: sfResponse.data.id });
 
   } catch (err) {
-    console.error("❌ Salesforce Error:", err.response?.data || err.message);
-
-    res.status(500).json({
-      success: false,
-      error: err.response?.data || err.message,
-    });
+    console.error('❌ Salesforce Error:', err.response?.data || err.message);
+    res.status(500).json({ success: false, error: err.response?.data || err.message });
   }
 });
 
-// ===== Start Server =====
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
