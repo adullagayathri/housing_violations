@@ -1,8 +1,7 @@
-import React, { useRef, useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
-// Universal color map
 const VIOLATION_COLORS = {
   "Peeling Paint": "#FF0000",
   "Vehicles on Unpaved": "#00FF00",
@@ -19,12 +18,10 @@ const VIOLATION_COLORS = {
   "Abandoned / Unsafe": "#800000",
 };
 
-function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) {
+function ImageCanvas({ image, annotations, setAnnotations, selectedViolation, stageRef }) {
   const [img] = useImage(image);
   const [newRect, setNewRect] = useState(null);
-  const stageRef = useRef();
 
-  // Start drawing
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
     if (!stage) return;
@@ -41,7 +38,6 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
     });
   };
 
-  // Resize while dragging
   const handleMouseMove = (e) => {
     if (!newRect) return;
     const stage = e.target.getStage();
@@ -49,14 +45,9 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
     const pos = stage.getPointerPosition();
     if (!pos) return;
 
-    setNewRect({
-      ...newRect,
-      width: pos.x - newRect.x,
-      height: pos.y - newRect.y,
-    });
+    setNewRect({ ...newRect, width: pos.x - newRect.x, height: pos.y - newRect.y });
   };
 
-  // Finish drawing → auto add to annotations
   const handleMouseUp = () => {
     if (!newRect) return;
 
@@ -81,12 +72,7 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       ref={stageRef}
-      style={{
-        border: "2px solid #F3D9BE",
-        borderRadius: "8px",
-        background: "#fff",
-        cursor: "crosshair",
-      }}
+      style={{ border: "2px solid #F3D9BE", borderRadius: "8px", background: "#fff", cursor: "crosshair" }}
     >
       <Layer>
         {img && <KonvaImage image={img} />}
