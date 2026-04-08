@@ -1,80 +1,42 @@
 import React from "react";
 
+// Use the same color map as ImageCanvas
 const VIOLATION_COLORS = {
   "Peeling Paint": "#FF0000",
   "Vehicles on Unpaved": "#00FF00",
   "Abandoned/Junk Vehicles": "#0000FF",
   "Overgrown Vegetation": "#FFA500",
   "Bad Roof": "#800080",
-  "Broken Window": "#FFC0CB",
-  "Broken Door": "#008080",
-  "Rubbish / Garbage": "#808000",
-  "Damaged Walk/Driveway": "#A52A2A",
+  "Broken Window": "#008080",
+  "Broken Door": "#FFC0CB",
+  "Rubbish / Garbage": "#808080",
+  "Damaged Walk/Driveway": "#000000",
   "Damaged Siding / Soffit": "#00FFFF",
-  "Damaged Foundation": "#000000",
-  "Damaged Porch / Steps": "#808080",
+  "Damaged Foundation": "#800000",
+  "Damaged Porch / Steps": "#008000",
   "Abandoned / Unsafe": "#800000",
 };
 
 function ViolationToolbar({ selectedViolation, setSelectedViolation }) {
   return (
-    <div className="violations-panel">
-      {/* Selected Violation Card */}
-      <div className="info-card">
-        <div
+    <div className="violation-toolbar">
+      {Object.keys(VIOLATION_COLORS).map((violation) => (
+        <button
+          key={violation}
+          onClick={() => setSelectedViolation(violation)}
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            marginBottom: "10px",
+            backgroundColor: VIOLATION_COLORS[violation],
+            color: "#fff",
+            margin: "5px",
+            padding: "6px 10px",
+            border: selectedViolation === violation ? "3px solid #000" : "1px solid #ccc",
+            borderRadius: "4px",
+            cursor: "pointer",
           }}
         >
-          <span
-            className="legend-dot"
-            style={{ backgroundColor: VIOLATION_COLORS[selectedViolation] }}
-          ></span>
-          <span>
-            <b>{selectedViolation}</b>
-          </span>
-        </div>
-        <div>This color will be used for the next box you draw.</div>
-      </div>
-
-      {/* Violation Selector */}
-      <div style={{ marginBottom: "20px" }}>
-        <label htmlFor="violation-select">
-          <b>Choose a Violation</b>
-        </label>
-        <select
-          id="violation-select"
-          value={selectedViolation}
-          onChange={(e) => setSelectedViolation(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "8px",
-            marginTop: "6px",
-            borderRadius: "8px",
-            border: "1px solid #ccc",
-          }}
-        >
-          {Object.keys(VIOLATION_COLORS).map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Violation Legend */}
-      <div>
-        <h4>All Violation Colors</h4>
-        {Object.entries(VIOLATION_COLORS).map(([violation, color]) => (
-          <div key={violation} className="legend-row">
-            <span className="legend-dot" style={{ backgroundColor: color }}></span>
-            <span>{violation}</span>
-          </div>
-        ))}
-      </div>
+          {violation}
+        </button>
+      ))}
     </div>
   );
 }

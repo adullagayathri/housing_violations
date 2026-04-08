@@ -1,30 +1,28 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
+
+// Universal color map
+const VIOLATION_COLORS = {
+  "Peeling Paint": "#FF0000",
+  "Vehicles on Unpaved": "#00FF00",
+  "Abandoned/Junk Vehicles": "#0000FF",
+  "Overgrown Vegetation": "#FFA500",
+  "Bad Roof": "#800080",
+  "Broken Window": "#008080",
+  "Broken Door": "#FFC0CB",
+  "Rubbish / Garbage": "#808080",
+  "Damaged Walk/Driveway": "#000000",
+  "Damaged Siding / Soffit": "#00FFFF",
+  "Damaged Foundation": "#800000",
+  "Damaged Porch / Steps": "#008000",
+  "Abandoned / Unsafe": "#800000",
+};
 
 function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) {
   const [img] = useImage(image);
   const [newRect, setNewRect] = useState(null);
   const stageRef = useRef();
-
-  // Map of violation colors – MUST match your toolbar
-  const colors = {
-    "Peeling Paint": "#FF0000",
-    "Vehicles on Unpaved": "#00FF00",
-    "Abandoned/Junk Vehicles": "#0000FF",
-    "Overgrown Vegetation": "#FFA500",
-    "Bad Roof": "#800080",
-    "Broken Window": "#008080",
-    "Broken Door": "#FFC0CB",
-    "Rubbish / Garbage": "#808080",
-    "Damaged Walk/Driveway": "#000000",
-    "Damaged Siding / Soffit": "#00FFFF",
-    "Damaged Foundation": "#800000",
-    "Damaged Porch / Steps": "#008000",
-    "Abandoned / Unsafe": "#FFFF00",
-  };
-
-  const getColor = (violation) => colors[violation] || "#FF0000";
 
   // Start drawing
   const handleMouseDown = (e) => {
@@ -39,7 +37,7 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
       width: 0,
       height: 0,
       violation: selectedViolation,
-      color: getColor(selectedViolation), // ALWAYS sync with toolbar
+      color: VIOLATION_COLORS[selectedViolation] || "#FF0000",
     });
   };
 
@@ -92,8 +90,6 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
     >
       <Layer>
         {img && <KonvaImage image={img} />}
-
-        {/* Render all existing rectangles */}
         {annotations.map((ann, i) => (
           <Rect
             key={i}
@@ -106,15 +102,15 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
             strokeWidth={2}
             draggable
             onDragEnd={(e) => {
-              const updated = [...annotations];
-              updated[i] = { ...updated[i], x: e.target.x(), y: e.target.y() };
-              setAnnotations(updated);
+              const newAnnotations = [...annotations];
+              newAnnotations[i] = { ...newAnnotations[i], x: e.target.x(), y: e.target.y() };
+              setAnnotations(newAnnotations);
             }}
             onTransformEnd={(e) => {
               const node = e.target;
-              const updated = [...annotations];
-              updated[i] = {
-                ...updated[i],
+              const newAnnotations = [...annotations];
+              newAnnotations[i] = {
+                ...newAnnotations[i],
                 x: node.x(),
                 y: node.y(),
                 width: node.width() * node.scaleX(),
@@ -122,12 +118,10 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
               };
               node.scaleX(1);
               node.scaleY(1);
-              setAnnotations(updated);
+              setAnnotations(newAnnotations);
             }}
           />
         ))}
-
-        {/* Rectangle while dragging */}
         {newRect && (
           <Rect
             x={newRect.width < 0 ? newRect.x + newRect.width : newRect.x}
