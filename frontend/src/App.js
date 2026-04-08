@@ -30,7 +30,6 @@ function App() {
   const [annotations, setAnnotations] = useState([]);
   const [imageSource, setImageSource] = useState("Upload Images");
 
-  // Ref for Stage
   const stageRef = useRef(null);
 
   const handleClearAll = () => {
@@ -54,7 +53,7 @@ function App() {
     const annotatedImageBase64 = getCanvasBase64();
     if (!annotatedImageBase64) return alert("No image to save!");
 
-    fetch("https://housing-violations.onrender.com/save", {  // Replace with your Render backend URL
+    fetch("https://housing-violations.onrender.com/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -71,7 +70,7 @@ function App() {
       }),
     })
       .then((res) => res.json())
-      .then((data) => alert("✅ Saved to Salesforce!"))
+      .then(() => alert("✅ Saved to Salesforce!"))
       .catch((err) => alert("❌ Error saving to Salesforce: " + err));
   };
 
@@ -146,7 +145,7 @@ function App() {
               annotations={annotations}
               setAnnotations={setAnnotations}
               selectedViolation={selectedViolation}
-              stageRef={stageRef} // pass the stageRef for export
+              stageRef={stageRef}
             />
           )}
 
