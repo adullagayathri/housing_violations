@@ -3,10 +3,11 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const qs = require('qs');
+const FormData = require('form-data');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // handle large base64 images
 
 let accessToken = null;
 let instanceUrl = null;
@@ -28,71 +29,88 @@ async function fetchSalesforceToken() {
 
     accessToken = response.data.access_token;
     instanceUrl = response.data.instance_url;
-
     console.log('✅ Salesforce token fetched');
   } catch (err) {
     console.error('❌ Error fetching Salesforce token:', err.response?.data || err.message);
   }
 }
 
-// Fetch token on startup
 fetchSalesforceToken();
+setInterval(fetchSalesforceToken, 55 * 60 * 1000); // refresh every 55 mins
 
-// Refresh token every 55 mins
-setInterval(fetchSalesforceToken, 55 * 60 * 1000);
+// ===== Upload Image to Salesforce Library =====
+async function uploadImageToLibrary(imageBase64, filename) {
+  const form = new FormData();
+  const buffer = Buffer.from(imageBase64.split(',')[1], 'base64'); // remove prefix if exists
+  form.append('VersionData', buffer, filename);
+  form.append('PathOnClient', filename);
+  form.append('LibraryId', process.env.SF_LIBRARY_ID);
 
-// ===== Save JSON + Image Endpoint =====
+  const url = `${instanceUrl}/services/data/v58.0/sobjects/ContentVersion`;
+
+  const response = await axios.post(url, form, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...form.getHeaders(),
+    },
+  });
+
+  // Get ContentDocumentId for linking
+  return response.data.ContentDocumentId;
+}
+
+// ===== API Endpoint =====
 app.post('/save', async (req, res) => {
-  const payload = req.body;
+  const { image_id, annotations, image_base64 } = req.body;
 
-  if (!payload || !payload.image_id || !payload.annotations || !payload.image_data) {
-    return res.status(400).json({ success: false, error: "Invalid payload" });
-  }
-
-  if (!accessToken || !instanceUrl) {
-    return res.status(500).json({ success: false, error: "Salesforce not authenticated yet" });
+  if (!image_id || !annotations || !image_base64) {
+    return res.status(400).json({ success: false, error: 'Invalid payload' });
   }
 
   try {
-    // --- 1. Upload Image to Salesforce ContentVersion ---
-    const contentResponse = await axios.post(
-      `${instanceUrl}/services/data/v58.0/sobjects/ContentVersion`,
-      {
-        Title: payload.image_id,
-        PathOnClient: payload.image_id,
-        VersionData: payload.image_data, // base64 image
-        FirstPublishLocationId: process.env.SF_LIBRARY_ID
-      },
-      { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } }
-    );
+    // 1️⃣ Upload image
+    const contentDocId = await uploadImageToLibrary(image_base64, image_id);
+    console.log('✅ Image uploaded, ContentDocumentId:', contentDocId);
 
-    const contentVersionId = contentResponse.data.id;
-    console.log('✅ Image uploaded:', contentVersionId);
+    // 2️⃣ Create Violation record
+    const sfUrl = `${instanceUrl}/services/data/v58.0/sobjects/Violation__c/`;
 
-    // --- 2. Save JSON record linked to image ---
-    const sfPayload = {
-      Name: payload.image_id,
-      JSON_Data__c: JSON.stringify({ annotations: payload.annotations }),
-      Image_Name__c: payload.image_id,
-      Uploaded_At__c: new Date().toISOString().split("T")[0], // YYYY-MM-DD
-      Content_Version_Id__c: contentVersionId // link to uploaded image
+    const payload = {
+      Name: image_id,
+      JSON_Data__c: JSON.stringify({ image_id, annotations }),
+      Image_Name__c: image_id,
+      Uploaded_At__c: new Date().toISOString().split('T')[0],
     };
 
-    const sfResponse = await axios.post(
-      `${instanceUrl}/services/data/v58.0/sobjects/Housing_Data_Image__c/`,
-      sfPayload,
-      { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } }
-    );
+    const recordRes = await axios.post(sfUrl, payload, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
-    console.log('✅ JSON + Image record saved:', sfResponse.data.id);
+    const recordId = recordRes.data.id;
+    console.log('✅ Violation record created:', recordId);
 
-    res.json({ success: true, sfId: sfResponse.data.id });
+    // 3️⃣ Link image to record
+    const linkUrl = `${instanceUrl}/services/data/v58.0/sobjects/ContentDocumentLink`;
+    await axios.post(linkUrl, {
+      ContentDocumentId: contentDocId,
+      LinkedEntityId: recordId,
+      ShareType: 'V', // View
+    }, {
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    });
 
+    console.log('✅ Image linked to record');
+
+    res.json({ success: true, recordId, contentDocId });
   } catch (err) {
     console.error('❌ Salesforce Error:', err.response?.data || err.message);
     res.status(500).json({ success: false, error: err.response?.data || err.message });
   }
 });
 
+// ===== Start Server =====
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
