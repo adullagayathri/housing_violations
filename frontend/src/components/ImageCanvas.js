@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
@@ -7,8 +7,8 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
   const [newRect, setNewRect] = useState(null);
   const stageRef = useRef();
 
-  // Unified violation colors mapping
-  const VIOLATION_COLORS = {
+  // Map of violation colors – MUST match your toolbar
+  const colors = {
     "Peeling Paint": "#FF0000",
     "Vehicles on Unpaved": "#00FF00",
     "Abandoned/Junk Vehicles": "#0000FF",
@@ -24,7 +24,7 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
     "Abandoned / Unsafe": "#FFFF00",
   };
 
-  const getColor = (violation) => VIOLATION_COLORS[violation] || "#FF0000";
+  const getColor = (violation) => colors[violation] || "#FF0000";
 
   // Start drawing
   const handleMouseDown = (e) => {
@@ -39,7 +39,7 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
       width: 0,
       height: 0,
       violation: selectedViolation,
-      color: getColor(selectedViolation),
+      color: getColor(selectedViolation), // ALWAYS sync with toolbar
     });
   };
 
@@ -93,7 +93,7 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
       <Layer>
         {img && <KonvaImage image={img} />}
 
-        {/* Existing annotations */}
+        {/* Render all existing rectangles */}
         {annotations.map((ann, i) => (
           <Rect
             key={i}
@@ -101,20 +101,20 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
             y={ann.y}
             width={ann.width}
             height={ann.height}
-            fill={getColor(ann.violation) + "33"} // always sync color
-            stroke={getColor(ann.violation)}
+            fill={ann.color + "33"}
+            stroke={ann.color}
             strokeWidth={2}
             draggable
             onDragEnd={(e) => {
-              const newAnnotations = [...annotations];
-              newAnnotations[i] = { ...newAnnotations[i], x: e.target.x(), y: e.target.y() };
-              setAnnotations(newAnnotations);
+              const updated = [...annotations];
+              updated[i] = { ...updated[i], x: e.target.x(), y: e.target.y() };
+              setAnnotations(updated);
             }}
             onTransformEnd={(e) => {
               const node = e.target;
-              const newAnnotations = [...annotations];
-              newAnnotations[i] = {
-                ...newAnnotations[i],
+              const updated = [...annotations];
+              updated[i] = {
+                ...updated[i],
                 x: node.x(),
                 y: node.y(),
                 width: node.width() * node.scaleX(),
@@ -122,12 +122,12 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation }) 
               };
               node.scaleX(1);
               node.scaleY(1);
-              setAnnotations(newAnnotations);
+              setAnnotations(updated);
             }}
           />
         ))}
 
-        {/* Rectangle while drawing */}
+        {/* Rectangle while dragging */}
         {newRect && (
           <Rect
             x={newRect.width < 0 ? newRect.x + newRect.width : newRect.x}
