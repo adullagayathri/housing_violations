@@ -1,0 +1,138 @@
+/* Global app styling */
+.App {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  padding: 20px;
+  background-color: #faf7f3;
+  color: #2f2a26;
+}
+
+/* Help box */
+.help-box {
+  background: #fff3e6;
+  border: 2px solid #f4c99a;
+  padding: 16px;
+  border-radius: 14px;
+  font-size: 1rem;
+  color: #4a3f36;
+  margin-bottom: 16px;
+}
+
+/* Main content layout */
+.main-content {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+/* Canvas panel */
+.canvas-panel {
+  flex: 4;
+  min-width: 400px;
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 14px;
+  border: 2px solid #f3d9be;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+/* Sidebar (ViolationToolbar) */
+.violation-toolbar {
+  flex: 1;
+  min-width: 200px;
+  background: #fff;
+  padding: 16px;
+  border-radius: 14px;
+  border: 2px solid #f3d9be;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+/* Legend rows in ViolationToolbar */
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+
+/* Legend dot */
+.legend-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Upload panel styling */
+.upload-panel {
+  background: #fff;
+  padding: 16px;
+  border-radius: 14px;
+  border: 2px solid #f3d9be;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+}
+
+/* Buttons */
+button {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+/* SaveControls buttons colors */
+button.save-btn {
+  background-color: #4caf50;
+  color: white;
+}
+
+button.clear-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+button.add-btn {
+  background-color: #ffcc00;
+}
+
+/* Image selector dropdown */
+#image-select {
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+/* Annotation preview table */
+.annotation-preview {
+  margin-top: 20px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.annotation-preview th,
+.annotation-preview td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+.annotation-preview th {
+  background-color: #f3d9be;
+  color: #2f2a26;
+  text-align: left;
+}
+
+.annotation-preview td {
+  background-color: #fff;
+}
+
+/* Canvas wrapper */
+.canvas-wrapper {
+  position: relative;
+  display: inline-block;
+}
