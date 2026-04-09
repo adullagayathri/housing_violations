@@ -75,9 +75,6 @@ app.post('/save', async (req, res) => {
       JSON__c: JSON.stringify(payload.annotations),
       Image_Name__c: payload.image_id,
       Uploaded_At__c: new Date().toISOString(),
-
-      // optional debug field (NOT required)
-      Library_Id_Debug__c: process.env.SF_LIBRARY_ID || null
     };
 
     const recordRes = await axios.post(
