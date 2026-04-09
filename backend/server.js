@@ -62,7 +62,7 @@ app.post('/save', async (req, res) => {
 
   try {
     // 1️⃣ Save JSON to Salesforce object
-    const sfUrl = `${instanceUrl}/services/data/v58.0/sobjects/Violation__c/`;
+    const sfUrl = `${instanceUrl}/services/data/v58.0/sobjects/Housing_Data_Image__c/`;
 
     const salesforcePayload = {
       Name: payload.image_id,
