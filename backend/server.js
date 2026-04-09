@@ -66,9 +66,9 @@ app.post('/save', async (req, res) => {
 
     const salesforcePayload = {
       Name: payload.image_id,
-      JSON_Data__c: JSON.stringify(payload.annotations),
+      JSON__c: JSON.stringify(payload.annotations),
       Image_Name__c: payload.image_id,
-      Uploaded_At__c: new Date().toISOString().split("T")[0],
+      Uploaded_At__c: new Date().toISOString(),
     };
 
     const response = await axios.post(sfUrl, salesforcePayload, {
