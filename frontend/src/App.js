@@ -69,11 +69,27 @@ function App() {
         image_base64: annotatedImageBase64,
       }),
     })
-      .then((res) => res.json())
-      .then(() => alert("✅ Saved to Salesforce!"))
-      .catch((err) => alert("❌ Error saving to Salesforce: " + err));
-  };
-
+      .then(async (res) => {
+        const data = await res.json();
+    
+        if (!res.ok) {
+          throw new Error(data.error || "Server error");
+        }
+    
+        return data;
+      })
+      .then((data) => {
+        console.log("Salesforce Response:", data);
+    
+        alert(
+          `✅ Saved successfully!\nRecord ID: ${data.recordId || "N/A"}`
+        );
+      })
+      .catch((err) => {
+        console.error(err);
+        alert("❌ Error saving to Salesforce: " + err.message);
+      });
+    
   return (
     <div className="App">
       <h1>🏠 House Issue Marking Tool</h1>
