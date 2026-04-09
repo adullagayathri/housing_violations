@@ -89,7 +89,7 @@ function App() {
         console.error(err);
         alert("❌ Error saving to Salesforce: " + err.message);
       });
-    
+  }; 
   return (
     <div className="App">
       <h1>🏠 House Issue Marking Tool</h1>
