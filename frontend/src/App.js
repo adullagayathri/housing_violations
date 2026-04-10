@@ -10,23 +10,24 @@ function App() {
   const [images, setImages] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
 
-  // 🚨 no default selection
   const [selectedViolation, setSelectedViolation] = useState(null);
 
   const [annotations, setAnnotations] = useState([]);
   const [imageSource, setImageSource] = useState("Upload Images");
+
+  // ✅ your zoom buttons remain unchanged
   const [zoom, setZoom] = useState(1);
 
   const stageRef = useRef(null);
+
+  const handleUndo = () => {
+    setAnnotations((prev) => prev.slice(0, -1));
+  };
 
   const handleClearAll = () => {
     setImages({});
     setSelectedImage(null);
     setAnnotations([]);
-  };
-
-  const handleUndo = () => {
-    setAnnotations((prev) => prev.slice(0, -1));
   };
 
   const getCanvasBase64 = () => {
@@ -65,13 +66,8 @@ function App() {
         alert(`✅ Saved successfully!\nRecord ID: ${data.recordId}`);
       })
       .catch((err) => {
-        console.log("❌ FULL ERROR:", err);
-        console.log("❌ RESPONSE DATA:", err?.response?.data);
-      
-        alert(
-          "❌ Error saving:\n" +
-          JSON.stringify(err?.response?.data || err, null, 2)
-        );
+        console.log(err);
+        alert("❌ Save Error:\n" + err.message);
       });
   };
 
@@ -80,47 +76,31 @@ function App() {
       <h1>🏠 House Issue Marking Tool</h1>
 
       <div className="help-box">
-        <h3>🧓 Easy Instructions</h3>
+        <h3>🧓 Instructions</h3>
         <p>1. Select image</p>
-        <p>2. Select violation FIRST</p>
+        <p>2. Select violation first</p>
         <p>3. Draw boxes</p>
-        <p>4. Drag boxes to move</p>
+        <p>4. Drag to move boxes</p>
         <p>5. Use zoom buttons</p>
         <p style={{ color: "red", fontWeight: "bold" }}>
           ⚠️ Always click SAVE
         </p>
       </div>
 
-      {/* IMAGE SOURCE */}
-      <div style={{ marginBottom: 20 }}>
-        <label>
-          <input
-            type="radio"
-            value="Upload Images"
-            checked={imageSource === "Upload Images"}
-            onChange={(e) => setImageSource(e.target.value)}
-          />
-          Upload Images
-        </label>
-
-        <label style={{ marginLeft: 20 }}>
-          <input
-            type="radio"
-            value="Load From Folder"
-            checked={imageSource === "Load From Folder"}
-            onChange={(e) => setImageSource(e.target.value)}
-          />
-          Load From Folder
-        </label>
+      <div style={{ marginBottom: 10 }}>
+        <button onClick={() => setZoom((z) => Math.min(z + 0.2, 3))}>
+          🔍 Zoom In
+        </button>
+        <button onClick={() => setZoom((z) => Math.max(z - 0.2, 0.5))}>
+          🔎 Zoom Out
+        </button>
       </div>
 
-      {imageSource && (
-        <UploadPanel
-          images={images}
-          setImages={setImages}
-          setSelectedImage={setSelectedImage}
-        />
-      )}
+      <UploadPanel
+        images={images}
+        setImages={setImages}
+        setSelectedImage={setSelectedImage}
+      />
 
       {Object.keys(images).length > 0 && (
         <select
@@ -134,16 +114,6 @@ function App() {
           ))}
         </select>
       )}
-
-      {/* ZOOM */}
-      <div style={{ display: "flex", gap: 10 }}>
-        <button onClick={() => setZoom((z) => Math.min(z + 0.2, 3))}>
-          Zoom In
-        </button>
-        <button onClick={() => setZoom((z) => Math.max(z - 0.2, 0.5))}>
-          Zoom Out
-        </button>
-      </div>
 
       <div className="main-content">
         <ViolationToolbar
