@@ -10,12 +10,11 @@ function App() {
   const [images, setImages] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
 
-  // 🚨 IMPORTANT: no default selection
+  // 🚨 no default selection
   const [selectedViolation, setSelectedViolation] = useState(null);
 
   const [annotations, setAnnotations] = useState([]);
   const [imageSource, setImageSource] = useState("Upload Images");
-
   const [zoom, setZoom] = useState(1);
 
   const stageRef = useRef(null);
@@ -74,18 +73,15 @@ function App() {
     <div className="App">
       <h1>🏠 House Issue Marking Tool</h1>
 
-      {/* HELP BOX */}
       <div className="help-box">
         <h3>🧓 Easy Instructions</h3>
-
-        <p>👉 First select a problem type (required)</p>
-        <p>👉 Then draw on image</p>
-        <p>👉 Drag boxes to move them</p>
-        <p>👉 Scroll or buttons to zoom</p>
-        <p>👉 Click UNDO if mistake</p>
-
+        <p>1. Select image</p>
+        <p>2. Select violation FIRST</p>
+        <p>3. Draw boxes</p>
+        <p>4. Drag boxes to move</p>
+        <p>5. Use zoom buttons</p>
         <p style={{ color: "red", fontWeight: "bold" }}>
-          ⚠️ Always click SAVE after finishing
+          ⚠️ Always click SAVE
         </p>
       </div>
 
@@ -112,7 +108,6 @@ function App() {
         </label>
       </div>
 
-      {/* UPLOAD */}
       {imageSource && (
         <UploadPanel
           images={images}
@@ -121,36 +116,29 @@ function App() {
         />
       )}
 
-      {/* IMAGE SELECT */}
       {Object.keys(images).length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <label><b>Select Image:</b></label>
-          <select
-            value={selectedImage || ""}
-            onChange={(e) => setSelectedImage(e.target.value)}
-            style={{ marginLeft: 10 }}
-          >
-            {Object.keys(images).map((img) => (
-              <option key={img} value={img}>
-                {img}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={selectedImage || ""}
+          onChange={(e) => setSelectedImage(e.target.value)}
+        >
+          {Object.keys(images).map((img) => (
+            <option key={img} value={img}>
+              {img}
+            </option>
+          ))}
+        </select>
       )}
 
-      {/* ZOOM BUTTONS */}
-      <div style={{ marginBottom: 10, display: "flex", gap: 10 }}>
+      {/* ZOOM */}
+      <div style={{ display: "flex", gap: 10 }}>
         <button onClick={() => setZoom((z) => Math.min(z + 0.2, 3))}>
-          🔍 Zoom In
+          Zoom In
         </button>
-
         <button onClick={() => setZoom((z) => Math.max(z - 0.2, 0.5))}>
-          🔎 Zoom Out
+          Zoom Out
         </button>
       </div>
 
-      {/* MAIN */}
       <div className="main-content">
         <ViolationToolbar
           selectedViolation={selectedViolation}
@@ -176,10 +164,7 @@ function App() {
           />
 
           {selectedImage && (
-            <AnnotationPreview
-              annotations={annotations}
-              selectedImage={selectedImage}
-            />
+            <AnnotationPreview annotations={annotations} />
           )}
         </div>
       </div>
