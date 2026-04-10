@@ -29,10 +29,10 @@ function App() {
   const [imageSource, setImageSource] = useState("Upload Images");
 
   const [scale, setScale] = useState(1);
-  const [showDropdown, setShowDropdown] = useState(false);
 
   const stageRef = useRef(null);
 
+  // reset zoom when image changes
   useEffect(() => {
     setScale(1);
   }, [selectedImage]);
@@ -87,10 +87,10 @@ function App() {
       <div className="help-box">
         <b>How to use:</b><br />
         1. Upload images<br />
-        2. Choose image<br />
-        3. Select violation<br />
-        4. Draw box<br />
-        5. Click Save
+        2. Select image<br />
+        3. Choose violation from left panel<br />
+        4. Draw bounding box<br />
+        5. Save results
 
         <div style={{
           marginTop: "10px",
@@ -100,11 +100,11 @@ function App() {
           borderRadius: "6px",
           fontWeight: "bold"
         }}>
-          ⚠️ Don’t forget to SAVE before changing image!
+          ⚠️ Don’t forget to SAVE before switching images!
         </div>
       </div>
 
-      {/* IMAGE SOURCE */}
+      {/* UPLOAD */}
       <UploadPanel
         images={images}
         setImages={setImages}
@@ -117,7 +117,9 @@ function App() {
           <label style={{ fontWeight: "bold", fontSize: "16px" }}>
             Change Image Here:
           </label>
+
           <br />
+
           <select
             value={selectedImage}
             onChange={(e) => setSelectedImage(e.target.value)}
@@ -130,89 +132,69 @@ function App() {
             }}
           >
             {Object.keys(images).map((img) => (
-              <option key={img} value={img}>{img}</option>
+              <option key={img} value={img}>
+                {img}
+              </option>
             ))}
           </select>
         </div>
       )}
 
-      <div className="main-content">
-        <div className="canvas-panel">
+      {/* MAIN LAYOUT */}
+      <div className="main-content" style={{ display: "flex" }}>
 
-          {/* VIOLATION DROPDOWN */}
-          <div style={{ marginBottom: "15px", position: "relative" }}>
-            <label style={{ fontWeight: "bold" }}>Select Violation:</label>
+        {/* LEFT SIDEBAR */}
+        <div
+          style={{
+            width: "260px",
+            borderRight: "1px solid #ddd",
+            padding: "10px",
+          }}
+        >
+          <h3>Violations</h3>
 
+          {Object.keys(VIOLATION_COLORS).map((v) => (
             <div
-              onClick={() => setShowDropdown(!showDropdown)}
+              key={v}
+              onClick={() => setSelectedViolation(v)}
               style={{
-                marginTop: "8px",
-                padding: "10px",
-                border: "1px solid #ccc",
-                borderRadius: "6px",
-                width: "300px",
+                display: "flex",
+                alignItems: "center",
+                padding: "8px",
+                marginBottom: "6px",
                 cursor: "pointer",
-                background: "#fff",
+                borderRadius: "6px",
+                border:
+                  selectedViolation === v
+                    ? "1px solid #999"
+                    : "1px solid transparent",
+                background: "transparent",
               }}
             >
-              {selectedViolation ? (
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <div style={{
-                    width: "12px",
-                    height: "12px",
-                    borderRadius: "50%",
-                    background: VIOLATION_COLORS[selectedViolation],
-                    marginRight: "10px"
-                  }} />
-                  {selectedViolation}
-                </div>
-              ) : "Select violation"}
+              {/* color circle */}
+              <div
+                style={{
+                  width: "12px",
+                  height: "12px",
+                  borderRadius: "50%",
+                  backgroundColor: VIOLATION_COLORS[v],
+                  marginRight: "10px",
+                }}
+              />
+              {v}
             </div>
+          ))}
+        </div>
 
-            {showDropdown && (
-              <div style={{
-                position: "absolute",
-                top: "70px",
-                width: "300px",
-                border: "1px solid #ccc",
-                background: "#fff",
-                zIndex: 10,
-                maxHeight: "200px",
-                overflowY: "auto"
-              }}>
-                {Object.keys(VIOLATION_COLORS).map((v) => (
-                  <div
-                    key={v}
-                    onClick={() => {
-                      setSelectedViolation(v);
-                      setShowDropdown(false);
-                    }}
-                    style={{
-                      padding: "8px",
-                      display: "flex",
-                      alignItems: "center",
-                      cursor: "pointer"
-                    }}
-                  >
-                    <div style={{
-                      width: "12px",
-                      height: "12px",
-                      borderRadius: "50%",
-                      background: VIOLATION_COLORS[v],
-                      marginRight: "10px"
-                    }} />
-                    {v}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* RIGHT CANVAS */}
+        <div className="canvas-panel" style={{ flex: 1, padding: "10px" }}>
 
           {/* ZOOM */}
           <div style={{ marginBottom: "10px" }}>
             <button onClick={() => setScale((s) => Math.min(s + 0.2, 5))}>
               🔍 Zoom In
             </button>
+
             <button
               onClick={() => setScale((s) => Math.max(s - 0.2, 0.2))}
               style={{ marginLeft: "10px" }}
