@@ -3,19 +3,19 @@ import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
 const VIOLATION_COLORS = {
-  "Peeling Paint": "#FF0000",
-  "Vehicles on Unpaved": "#00FF00",
-  "Abandoned/Junk Vehicles": "#0000FF",
-  "Overgrown Vegetation": "#FFA500",
-  "Bad Roof": "#800080",
-  "Broken Window": "#008080",
-  "Broken Door": "#FFC0CB",
-  "Rubbish / Garbage": "#808080",
-  "Damaged Walk/Driveway": "#000000",
-  "Damaged Siding / Soffit": "#00FFFF",
-  "Damaged Foundation": "#800000",
-  "Damaged Porch / Steps": "#008000",
-  "Abandoned / Unsafe": "#800000",
+  "Peeling Paint": "#e6194b",
+  "Vehicles on Unpaved": "#3cb44b",
+  "Abandoned/Junk Vehicles": "#4363d8",
+  "Overgrown Vegetation": "#f58231",
+  "Bad Roof": "#911eb4",
+  "Broken Window": "#46f0f0",
+  "Broken Door": "#f032e6",
+  "Rubbish / Garbage": "#bcf60c",
+  "Damaged Walk/Driveway": "#fabebe",
+  "Damaged Siding / Soffit": "#008080",
+  "Damaged Foundation": "#e6beff",
+  "Damaged Porch / Steps": "#9a6324",
+  "Abandoned / Unsafe": "#fffac8",
 };
 
 function ImageCanvas({
@@ -28,6 +28,7 @@ function ImageCanvas({
 }) {
   const [img] = useImage(image);
   const [newRect, setNewRect] = useState(null);
+  const [isPanning, setIsPanning] = useState(false);
 
   // ✅ Adjust pointer for zoom
   const getScaledPointer = (stage) => {
@@ -40,31 +41,54 @@ function ImageCanvas({
     };
   };
 
+  // 🖱️ Mouse Down
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
     if (!stage) return;
 
-    // ❌ prevent drawing while dragging
-    if (stage.isDragging()) return;
+    // 👉 If clicked empty canvas → PAN MODE
+    if (e.target === stage) {
+      if (scale > 1) setIsPanning(true);
+      return;
+    }
+
+    // ❌ Must select violation
+    if (!selectedViolation) return;
 
     const pos = getScaledPointer(stage);
     if (!pos) return;
 
+    // ✏️ Start drawing
     setNewRect({
       x: pos.x,
       y: pos.y,
       width: 0,
       height: 0,
       violation: selectedViolation,
-      color: VIOLATION_COLORS[selectedViolation] || "#FF0000",
+      color: VIOLATION_COLORS[selectedViolation] || "#e6194b",
     });
   };
 
+  // 🖱️ Mouse Move
   const handleMouseMove = (e) => {
-    if (!newRect) return;
-
     const stage = e.target.getStage();
     if (!stage) return;
+
+    // 🖐️ PAN MODE
+    if (isPanning && scale > 1) {
+      const pos = stage.position();
+
+      stage.position({
+        x: pos.x + e.evt.movementX,
+        y: pos.y + e.evt.movementY,
+      });
+
+      stage.batchDraw();
+      return;
+    }
+
+    // ✏️ DRAW MODE
+    if (!newRect) return;
 
     const pos = getScaledPointer(stage);
     if (!pos) return;
@@ -76,9 +100,17 @@ function ImageCanvas({
     });
   };
 
+  // 🖱️ Mouse Up
   const handleMouseUp = () => {
+    // Stop panning
+    if (isPanning) {
+      setIsPanning(false);
+      return;
+    }
+
     if (!newRect) return;
 
+    // Save rectangle
     if (Math.abs(newRect.width) > 5 && Math.abs(newRect.height) > 5) {
       const finalizedRect = {
         ...newRect,
@@ -100,27 +132,26 @@ function ImageCanvas({
       height={img ? img.height : 600}
       scaleX={scale}
       scaleY={scale}
-      draggable={scale > 1}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onDragStart={(e) => {
-        e.target.container().style.cursor = "grabbing";
-      }}
-      onDragEnd={(e) => {
-        e.target.container().style.cursor = "grab";
-      }}
       ref={stageRef}
       style={{
         border: "2px solid #F3D9BE",
         borderRadius: "8px",
         background: "#fff",
-        cursor: scale > 1 ? "grab" : "crosshair",
+        cursor:
+          scale > 1
+            ? isPanning
+              ? "grabbing"
+              : "grab"
+            : "crosshair",
       }}
     >
       <Layer>
         {img && <KonvaImage image={img} />}
 
+        {/* Existing Annotations */}
         {annotations.map((ann, i) => (
           <Rect
             key={i}
@@ -144,6 +175,7 @@ function ImageCanvas({
           />
         ))}
 
+        {/* New Rectangle Preview */}
         {newRect && (
           <Rect
             x={newRect.width < 0 ? newRect.x + newRect.width : newRect.x}
