@@ -10,19 +10,16 @@ function App() {
   const [images, setImages] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
 
+  // IMPORTANT: NO DEFAULT SELECTION
   const [selectedViolation, setSelectedViolation] = useState(null);
 
   const [annotations, setAnnotations] = useState([]);
   const [imageSource, setImageSource] = useState("Upload Images");
 
-  // ✅ your zoom buttons remain unchanged
   const [zoom, setZoom] = useState(1);
 
+  // SINGLE SOURCE OF TRUTH FOR EXPORT
   const stageRef = useRef(null);
-
-  const handleUndo = () => {
-    setAnnotations((prev) => prev.slice(0, -1));
-  };
 
   const handleClearAll = () => {
     setImages({});
@@ -30,16 +27,37 @@ function App() {
     setAnnotations([]);
   };
 
+  const handleUndo = () => {
+    setAnnotations((prev) => prev.slice(0, -1));
+  };
+
+  // SAFE EXPORT FUNCTION
   const getCanvasBase64 = () => {
-    if (!stageRef.current) return null;
-    return stageRef.current.toDataURL({ pixelRatio: 1 }).split(",")[1];
+    try {
+      if (!stageRef.current) return null;
+
+      const dataURL = stageRef.current.toDataURL({
+        pixelRatio: 2,
+      });
+
+      if (!dataURL) return null;
+
+      return dataURL.split(",")[1];
+    } catch (err) {
+      console.error("Export error:", err);
+      return null;
+    }
   };
 
   const handleSaveJSON = () => {
     if (!selectedImage) return;
 
     const annotatedImageBase64 = getCanvasBase64();
-    if (!annotatedImageBase64) return alert("No image to save!");
+
+    if (!annotatedImageBase64) {
+      alert("❌ No image to save!");
+      return;
+    }
 
     fetch("https://housing-violations.onrender.com/save", {
       method: "POST",
@@ -66,8 +84,7 @@ function App() {
         alert(`✅ Saved successfully!\nRecord ID: ${data.recordId}`);
       })
       .catch((err) => {
-        console.log(err);
-        alert("❌ Save Error:\n" + err.message);
+        alert("❌ Error saving: " + err.message);
       });
   };
 
@@ -75,46 +92,81 @@ function App() {
     <div className="App">
       <h1>🏠 House Issue Marking Tool</h1>
 
+      {/* HELP */}
       <div className="help-box">
-        <h3>🧓 Instructions</h3>
-        <p>1. Select image</p>
-        <p>2. Select violation first</p>
-        <p>3. Draw boxes</p>
-        <p>4. Drag to move boxes</p>
-        <p>5. Use zoom buttons</p>
+        <h3>🧓 Simple Instructions</h3>
+        <p>1. Select a violation type</p>
+        <p>2. Select image</p>
+        <p>3. Draw boxes on image</p>
+        <p>4. Drag boxes to move them</p>
+        <p>5. Use zoom buttons if needed</p>
+        <p>6. Click undo if mistake</p>
         <p style={{ color: "red", fontWeight: "bold" }}>
-          ⚠️ Always click SAVE
+          ⚠️ Always click SAVE after finishing
         </p>
       </div>
 
-      <div style={{ marginBottom: 10 }}>
-        <button onClick={() => setZoom((z) => Math.min(z + 0.2, 3))}>
+      {/* IMAGE SOURCE */}
+      <div style={{ marginBottom: 20 }}>
+        <label>
+          <input
+            type="radio"
+            value="Upload Images"
+            checked={imageSource === "Upload Images"}
+            onChange={(e) => setImageSource(e.target.value)}
+          />
+          Upload Images
+        </label>
+
+        <label style={{ marginLeft: 20 }}>
+          <input
+            type="radio"
+            value="Load From Folder"
+            checked={imageSource === "Load From Folder"}
+            onChange={(e) => setImageSource(e.target.value)}
+          />
+          Load From Folder
+        </label>
+      </div>
+
+      {/* UPLOAD */}
+      {imageSource && (
+        <UploadPanel
+          images={images}
+          setImages={setImages}
+          setSelectedImage={setSelectedImage}
+        />
+      )}
+
+      {/* IMAGE SELECT */}
+      {Object.keys(images).length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <label><b>Select Image:</b></label>
+          <select
+            value={selectedImage || ""}
+            onChange={(e) => setSelectedImage(e.target.value)}
+            style={{ marginLeft: 10 }}
+          >
+            {Object.keys(images).map((img) => (
+              <option key={img} value={img}>
+                {img}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* ZOOM */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+        <button onClick={() => setZoom((z) => Math.min(z + 0.2, 5))}>
           🔍 Zoom In
         </button>
-        <button onClick={() => setZoom((z) => Math.max(z - 0.2, 0.5))}>
+        <button onClick={() => setZoom((z) => Math.max(z - 0.2, 0.05))}>
           🔎 Zoom Out
         </button>
       </div>
 
-      <UploadPanel
-        images={images}
-        setImages={setImages}
-        setSelectedImage={setSelectedImage}
-      />
-
-      {Object.keys(images).length > 0 && (
-        <select
-          value={selectedImage || ""}
-          onChange={(e) => setSelectedImage(e.target.value)}
-        >
-          {Object.keys(images).map((img) => (
-            <option key={img} value={img}>
-              {img}
-            </option>
-          ))}
-        </select>
-      )}
-
+      {/* MAIN */}
       <div className="main-content">
         <ViolationToolbar
           selectedViolation={selectedViolation}
@@ -124,7 +176,7 @@ function App() {
         <div className="canvas-panel">
           {selectedImage && (
             <ImageCanvas
-              ref={stageRef}
+              stageRef={stageRef}
               image={images[selectedImage]}
               annotations={annotations}
               setAnnotations={setAnnotations}
@@ -140,7 +192,10 @@ function App() {
           />
 
           {selectedImage && (
-            <AnnotationPreview annotations={annotations} />
+            <AnnotationPreview
+              annotations={annotations}
+              selectedImage={selectedImage}
+            />
           )}
         </div>
       </div>
