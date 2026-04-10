@@ -27,15 +27,14 @@ function App() {
   const [selectedViolation, setSelectedViolation] = useState("");
   const [annotations, setAnnotations] = useState([]);
 
-  // zoom + mode
   const [scale, setScale] = useState(1);
-  const [mode, setMode] = useState("draw"); // draw | zoom
+  const [moveMode, setMoveMode] = useState(false); // ✅ ONLY for pan
 
   const stageRef = useRef(null);
 
   useEffect(() => {
     setScale(1);
-    setMode("draw");
+    setMoveMode(false);
     setSelectedViolation("");
   }, [selectedImage]);
 
@@ -59,7 +58,6 @@ function App() {
     if (!selectedImage) return;
 
     const annotatedImageBase64 = getCanvasBase64();
-    if (!annotatedImageBase64) return alert("No image to save!");
 
     fetch("https://housing-violations.onrender.com/save", {
       method: "POST",
@@ -70,7 +68,6 @@ function App() {
         image_base64: annotatedImageBase64,
       }),
     })
-      .then((res) => res.json())
       .then(() => alert("✅ Saved successfully!"))
       .catch((err) => alert("❌ Error: " + err));
   };
@@ -79,7 +76,6 @@ function App() {
     <div className="App">
       <h1>🏠 House Issue Marking Tool</h1>
 
-      {/* UPLOAD */}
       <UploadPanel
         images={images}
         setImages={setImages}
@@ -113,18 +109,13 @@ function App() {
               key={v}
               onClick={() => {
                 setSelectedViolation(v);
-                setMode("draw"); // enable drawing again
+                setMoveMode(false); // switch to draw mode
               }}
               style={{
                 display: "flex",
                 alignItems: "center",
                 padding: "8px",
                 cursor: "pointer",
-                borderRadius: "6px",
-                border:
-                  selectedViolation === v
-                    ? "1px solid #999"
-                    : "1px solid transparent",
               }}
             >
               <div
@@ -144,24 +135,22 @@ function App() {
         {/* MAIN */}
         <div style={{ flex: 1, padding: "10px" }}>
 
-          {/* ZOOM CONTROLS */}
+          {/* ZOOM + MOVE CONTROLS */}
           <div style={{ marginBottom: "10px" }}>
+
             <button
-              onClick={() => {
-                setScale((s) => Math.min(s + 0.2, 5));
-                setMode("zoom");         // enter navigation mode
-                setSelectedViolation(""); // clear selection
-              }}
+              onClick={() => setMoveMode((m) => !m)}
+              style={{ marginRight: "10px" }}
             >
+              🖐️ Move {moveMode ? "ON" : "OFF"}
+            </button>
+
+            <button onClick={() => setScale((s) => Math.min(s + 0.2, 5))}>
               🔍 Zoom In
             </button>
 
             <button
-              onClick={() => {
-                setScale((s) => Math.max(s - 0.2, 0.2));
-                setMode("zoom");
-                setSelectedViolation("");
-              }}
+              onClick={() => setScale((s) => Math.max(s - 0.2, 0.2))}
               style={{ marginLeft: "10px" }}
             >
               🔎 Zoom Out
@@ -178,7 +167,7 @@ function App() {
               VIOLATION_COLORS={VIOLATION_COLORS}
               stageRef={stageRef}
               scale={scale}
-              mode={mode}
+              moveMode={moveMode}
             />
           )}
 
