@@ -47,8 +47,6 @@ app.post("/save", async (req, res) => {
   try {
     const payload = req.body;
 
-    console.log("🔥 REQUEST RECEIVED");
-
     if (!payload?.image_id || !payload?.annotations) {
       return res.status(400).json({ error: "Invalid payload" });
     }
@@ -58,32 +56,84 @@ app.post("/save", async (req, res) => {
     }
 
     // =========================
-    // 1. CREATE RECORD
+    // 1. CHECK EXISTING RECORD
     // =========================
-    const recordRes = await axios.post(
-      `${instanceUrl}/services/data/v58.0/sobjects/Housing_Data_Image__c/`,
+    const query = await axios.get(
+      `${instanceUrl}/services/data/v58.0/query/?q=` +
+        `SELECT Id FROM Housing_Data_Image__c WHERE Image_Name__c='${payload.image_id}' LIMIT 1`,
       {
-        Name: payload.image_id,
-        JSON__c: JSON.stringify(payload.annotations),
-        Image_Name__c: payload.image_id,
-        Uploaded_At__c: new Date().toISOString(),
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
 
-    const recordId = recordRes.data.id;
-    console.log("✅ Record:", recordId);
+    let recordId = query.data.records?.[0]?.Id;
 
+    // =========================
+    // 2. UPSERT RECORD
+    // =========================
+    if (recordId) {
+      // UPDATE existing
+      await axios.patch(
+        `${instanceUrl}/services/data/v58.0/sobjects/Housing_Data_Image__c/${recordId}`,
+        {
+          JSON__c: JSON.stringify(payload.annotations),
+          Uploaded_At__c: new Date().toISOString(),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    } else {
+      // CREATE new
+      const recordRes = await axios.post(
+        `${instanceUrl}/services/data/v58.0/sobjects/Housing_Data_Image__c/`,
+        {
+          Name: payload.image_id,
+          JSON__c: JSON.stringify(payload.annotations),
+          Image_Name__c: payload.image_id,
+          Uploaded_At__c: new Date().toISOString(),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      recordId = recordRes.data.id;
+    }
+
+    console.log("✅ Record Ready:", recordId);
+
+    // =========================
+    // 3. DELETE OLD FILES (IMPORTANT)
+    // =========================
+    const oldFiles = await axios.get(
+      `${instanceUrl}/services/data/v58.0/query/?q=` +
+        `SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId='${recordId}'`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+
+    for (const f of oldFiles.data.records || []) {
+      await axios.delete(
+        `${instanceUrl}/services/data/v58.0/sobjects/ContentDocument/${f.ContentDocumentId}`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+    }
+
+    // =========================
+    // 4. UPLOAD NEW IMAGE
+    // =========================
     let contentDocumentId = null;
 
-    // =========================
-    // 2. UPLOAD IMAGE
-    // =========================
     if (payload.image_base64) {
       const base64Data = payload.image_base64.includes(",")
         ? payload.image_base64.split(",")[1]
@@ -106,25 +156,16 @@ app.post("/save", async (req, res) => {
 
       const contentVersionId = fileRes.data.id;
 
-      // =========================
-      // 3. GET DOCUMENT ID
-      // =========================
       const queryRes = await axios.get(
-        `${instanceUrl}/services/data/v58.0/query/?q=SELECT+ContentDocumentId+FROM+ContentVersion+WHERE+Id='${contentVersionId}'`,
+        `${instanceUrl}/services/data/v58.0/query/?q=` +
+          `SELECT ContentDocumentId FROM ContentVersion WHERE Id='${contentVersionId}'`,
         {
           headers: { Authorization: `Bearer ${accessToken}` },
         }
       );
 
-      if (!queryRes.data.records?.length) {
-        throw new Error("ContentDocumentId not found");
-      }
-
       contentDocumentId = queryRes.data.records[0].ContentDocumentId;
 
-      // =========================
-      // 4. LINK TO RECORD
-      // =========================
       await axios.post(
         `${instanceUrl}/services/data/v58.0/sobjects/ContentDocumentLink/`,
         {
@@ -140,8 +181,6 @@ app.post("/save", async (req, res) => {
           },
         }
       );
-
-      console.log("✅ File linked");
     }
 
     return res.json({
@@ -150,13 +189,11 @@ app.post("/save", async (req, res) => {
       contentDocumentId,
     });
   } catch (err) {
-    console.error("❌ FULL ERROR:");
-    console.error(err.response?.data || err.message);
+    console.error("❌ ERROR:", err.response?.data || err.message);
 
     return res.status(500).json({
       success: false,
       error: err.response?.data || err.message,
-      debug: err.toString(),
     });
   }
 });
