@@ -20,7 +20,7 @@ const VIOLATION_COLORS = {
 
 const ImageCanvas = forwardRef(
 (
-  { image, annotations, setAnnotations, selectedViolation },
+  { image, annotations, setAnnotations, selectedViolation, zoom },
   stageRef
 ) => {
   const [img] = useImage(image);
@@ -28,34 +28,19 @@ const ImageCanvas = forwardRef(
   const [newRect, setNewRect] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-
   const W = 900;
   const H = 600;
 
-  // 📌 FIT IMAGE INIT
-  useEffect(() => {
-    if (!img) return;
-
-    const s = Math.min(W / img.width, H / img.height);
-
-    setScale(s);
-    setPosition({
-      x: (W - img.width * s) / 2,
-      y: (H - img.height * s) / 2,
-    });
-  }, [img]);
-
-  // 🖱️ START DRAW
+  // 🚨 BLOCK DRAWING IF NO SELECTION
   const handleMouseDown = (e) => {
-    setIsDrawing(true);
+    if (!selectedViolation) return;
 
+    setIsDrawing(true);
     const pos = e.target.getStage().getPointerPosition();
 
     setNewRect({
-      x: (pos.x - position.x) / scale,
-      y: (pos.y - position.y) / scale,
+      x: pos.x / zoom,
+      y: pos.y / zoom,
       width: 0,
       height: 0,
       violation: selectedViolation,
@@ -63,7 +48,6 @@ const ImageCanvas = forwardRef(
     });
   };
 
-  // 🖱️ DRAWING
   const handleMouseMove = (e) => {
     if (!isDrawing || !newRect) return;
 
@@ -71,12 +55,11 @@ const ImageCanvas = forwardRef(
 
     setNewRect({
       ...newRect,
-      width: (pos.x - position.x) / scale - newRect.x,
-      height: (pos.y - position.y) / scale - newRect.y,
+      width: pos.x / zoom - newRect.x,
+      height: pos.y / zoom - newRect.y,
     });
   };
 
-  // 🖱️ STOP DRAW
   const handleMouseUp = () => {
     setIsDrawing(false);
 
@@ -97,54 +80,14 @@ const ImageCanvas = forwardRef(
     setNewRect(null);
   };
 
-  // 🔍 ZOOM
-  const handleWheel = (e) => {
-    e.evt.preventDefault();
-
-    const scaleBy = 1.1;
-    const stage = e.target.getStage();
-    const pointer = stage.getPointerPosition();
-
-    const mousePointTo = {
-      x: (pointer.x - position.x) / scale,
-      y: (pointer.y - position.y) / scale,
-    };
-
-    let newScale =
-      e.evt.deltaY > 0 ? scale / scaleBy : scale * scaleBy;
-
-    newScale = Math.max(0.5, Math.min(newScale, 6));
-
-    setScale(newScale);
-
-    setPosition({
-      x: pointer.x - mousePointTo.x * newScale,
-      y: pointer.y - mousePointTo.y * newScale,
-    });
-  };
-
-  // 🖐️ PAN
-  const handleDragEnd = (e) => {
-    if (isDrawing) return;
-
-    setPosition({
-      x: e.target.x(),
-      y: e.target.y(),
-    });
-  };
-
   return (
     <Stage
       ref={stageRef}
       width={W}
       height={H}
-      scaleX={scale}
-      scaleY={scale}
-      x={position.x}
-      y={position.y}
+      scaleX={zoom}
+      scaleY={zoom}
       draggable={!isDrawing}
-      onDragEnd={handleDragEnd}
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -152,7 +95,7 @@ const ImageCanvas = forwardRef(
         border: "2px solid #ddd",
         borderRadius: "12px",
         background: "#fff",
-        cursor: isDrawing ? "crosshair" : "grab",
+        cursor: selectedViolation ? "crosshair" : "not-allowed",
       }}
     >
       <Layer>
@@ -165,8 +108,8 @@ const ImageCanvas = forwardRef(
             y={ann.y}
             width={ann.width}
             height={ann.height}
-            fill={ann.color + "30"}
-            stroke={ann.color}
+            fill={ann.color + "40"}
+            stroke="#000"
             strokeWidth={2}
             draggable
             onDragEnd={(e) => {
@@ -184,7 +127,7 @@ const ImageCanvas = forwardRef(
             y={newRect.y}
             width={newRect.width}
             height={newRect.height}
-            fill={newRect.color + "30"}
+            fill={newRect.color + "40"}
             stroke={newRect.color}
             strokeWidth={2}
           />
