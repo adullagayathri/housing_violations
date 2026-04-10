@@ -7,9 +7,10 @@ function ImageCanvas({
   annotations,
   setAnnotations,
   selectedViolation,
+  VIOLATION_COLORS,
   stageRef,
   scale,
-  VIOLATION_COLORS,
+  mode,
 }) {
   const [img] = useImage(image);
   const [newRect, setNewRect] = useState(null);
@@ -20,17 +21,19 @@ function ImageCanvas({
     return p ? { x: p.x / scale, y: p.y / scale } : null;
   };
 
+  // ---------------- Mouse Down ----------------
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
     if (!stage) return;
 
-    // PAN START
-    if (e.target.getClassName() === "Stage" && scale > 1) {
+    // PAN ONLY IN ZOOM MODE
+    if (mode === "zoom" && e.target.getClassName() === "Stage") {
       setIsPanning(true);
       return;
     }
 
-    // DRAW ONLY IF VIOLATION SELECTED
+    // DRAW ONLY IN DRAW MODE
+    if (mode !== "draw") return;
     if (!selectedViolation) return;
 
     const pos = getPointer(stage);
@@ -46,6 +49,7 @@ function ImageCanvas({
     });
   };
 
+  // ---------------- Mouse Move ----------------
   const handleMouseMove = (e) => {
     const stage = e.target.getStage();
     if (!stage) return;
@@ -74,6 +78,7 @@ function ImageCanvas({
     });
   };
 
+  // ---------------- Mouse Up ----------------
   const handleMouseUp = () => {
     if (isPanning) {
       setIsPanning(false);
@@ -110,12 +115,13 @@ function ImageCanvas({
       style={{
         border: "2px solid #ddd",
         background: "#fff",
-        cursor: scale > 1 ? (isPanning ? "grabbing" : "grab") : "crosshair",
+        cursor: mode === "zoom" ? (isPanning ? "grabbing" : "grab") : "crosshair",
       }}
     >
       <Layer>
         {img && <KonvaImage image={img} />}
 
+        {/* EXISTING ANNOTATIONS */}
         {annotations.map((a, i) => (
           <Rect
             key={i}
@@ -124,7 +130,7 @@ function ImageCanvas({
             width={a.width}
             height={a.height}
             fill={(a.color || "#000") + "33"}
-            stroke={a.color || "#000"}
+            stroke={a.color}
             strokeWidth={2}
             draggable
             onDragEnd={(e) => {
@@ -139,18 +145,11 @@ function ImageCanvas({
           />
         ))}
 
+        {/* NEW RECT */}
         {newRect && (
           <Rect
-            x={
-              newRect.width < 0
-                ? newRect.x + newRect.width
-                : newRect.x
-            }
-            y={
-              newRect.height < 0
-                ? newRect.y + newRect.height
-                : newRect.y
-            }
+            x={newRect.width < 0 ? newRect.x + newRect.width : newRect.x}
+            y={newRect.height < 0 ? newRect.y + newRect.height : newRect.y}
             width={Math.abs(newRect.width)}
             height={Math.abs(newRect.height)}
             fill="rgba(0,0,0,0.1)"
