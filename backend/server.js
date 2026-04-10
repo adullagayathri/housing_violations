@@ -144,7 +144,7 @@ app.post("/save", async (req, res) => {
         {
           Title: payload.image_id,
           PathOnClient: `${payload.image_id}.png`,
-          VersionData: Buffer.from(base64Data, "base64"),
+          VersionData: base64Data,
         },
         {
           headers: {
