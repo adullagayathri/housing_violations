@@ -26,12 +26,17 @@ function App() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedViolation, setSelectedViolation] = useState("");
   const [annotations, setAnnotations] = useState([]);
+
+  // zoom + mode
   const [scale, setScale] = useState(1);
+  const [mode, setMode] = useState("draw"); // draw | zoom
 
   const stageRef = useRef(null);
 
   useEffect(() => {
     setScale(1);
+    setMode("draw");
+    setSelectedViolation("");
   }, [selectedImage]);
 
   const handleClearAll = () => {
@@ -61,27 +66,18 @@ function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         image_id: selectedImage,
-        annotations: annotations,
+        annotations,
         image_base64: annotatedImageBase64,
       }),
     })
       .then((res) => res.json())
       .then(() => alert("✅ Saved successfully!"))
-      .catch((err) => alert("❌ Error saving: " + err));
+      .catch((err) => alert("❌ Error: " + err));
   };
 
   return (
     <div className="App">
       <h1>🏠 House Issue Marking Tool</h1>
-
-      <div className="help-box">
-        <b>How to use:</b><br />
-        1. Upload images<br />
-        2. Select image<br />
-        3. Select violation<br />
-        4. Draw boxes<br />
-        5. Save
-      </div>
 
       {/* UPLOAD */}
       <UploadPanel
@@ -92,7 +88,7 @@ function App() {
 
       {/* IMAGE SELECT */}
       {Object.keys(images).length > 0 && (
-        <div style={{ marginBottom: "20px" }}>
+        <div style={{ marginBottom: "15px" }}>
           <label><b>Change Image:</b></label>
           <select
             value={selectedImage}
@@ -108,14 +104,17 @@ function App() {
 
       <div style={{ display: "flex" }}>
 
-        {/* LEFT SIDEBAR */}
+        {/* SIDEBAR */}
         <div style={{ width: "260px", borderRight: "1px solid #ddd", padding: "10px" }}>
           <h3>Violations</h3>
 
           {Object.keys(VIOLATION_COLORS).map((v) => (
             <div
               key={v}
-              onClick={() => setSelectedViolation(v)}
+              onClick={() => {
+                setSelectedViolation(v);
+                setMode("draw"); // enable drawing again
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -142,17 +141,27 @@ function App() {
           ))}
         </div>
 
-        {/* RIGHT PANEL */}
+        {/* MAIN */}
         <div style={{ flex: 1, padding: "10px" }}>
 
-          {/* ZOOM */}
+          {/* ZOOM CONTROLS */}
           <div style={{ marginBottom: "10px" }}>
-            <button onClick={() => setScale((s) => Math.min(s + 0.2, 5))}>
+            <button
+              onClick={() => {
+                setScale((s) => Math.min(s + 0.2, 5));
+                setMode("zoom");         // enter navigation mode
+                setSelectedViolation(""); // clear selection
+              }}
+            >
               🔍 Zoom In
             </button>
 
             <button
-              onClick={() => setScale((s) => Math.max(s - 0.2, 0.2))}
+              onClick={() => {
+                setScale((s) => Math.max(s - 0.2, 0.2));
+                setMode("zoom");
+                setSelectedViolation("");
+              }}
               style={{ marginLeft: "10px" }}
             >
               🔎 Zoom Out
@@ -166,9 +175,10 @@ function App() {
               annotations={annotations}
               setAnnotations={setAnnotations}
               selectedViolation={selectedViolation}
+              VIOLATION_COLORS={VIOLATION_COLORS}
               stageRef={stageRef}
               scale={scale}
-              VIOLATION_COLORS={VIOLATION_COLORS}
+              mode={mode}
             />
           )}
 
