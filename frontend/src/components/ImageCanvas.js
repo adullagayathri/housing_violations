@@ -1,136 +1,154 @@
-import React, { useState, forwardRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
 const VIOLATION_COLORS = {
-  "Peeling Paint": "#FF4B4B",
-  "Vehicles on Unpaved": "#2ECC71",
-  "Abandoned/Junk Vehicles": "#3498DB",
-  "Overgrown Vegetation": "#F39C12",
-  "Bad Roof": "#9B59B6",
-  "Broken Window": "#1ABC9C",
-  "Broken Door": "#E67E22",
-  "Rubbish / Garbage": "#7F8C8D",
-  "Damaged Walk/Driveway": "#34495E",
-  "Damaged Siding / Soffit": "#00BCD4",
-  "Damaged Foundation": "#8E44AD",
-  "Damaged Porch / Steps": "#27AE60",
-  "Abandoned / Unsafe": "#C0392B",
+  "Peeling Paint": "#FF0000",
+  "Vehicles on Unpaved": "#00FF00",
+  "Abandoned/Junk Vehicles": "#0000FF",
+  "Overgrown Vegetation": "#FFA500",
+  "Bad Roof": "#800080",
+  "Broken Window": "#008080",
+  "Broken Door": "#FFC0CB",
+  "Rubbish / Garbage": "#808080",
+  "Damaged Walk/Driveway": "#000000",
+  "Damaged Siding / Soffit": "#00FFFF",
+  "Damaged Foundation": "#800000",
+  "Damaged Porch / Steps": "#008000",
+  "Abandoned / Unsafe": "#800000",
 };
 
-const ImageCanvas = forwardRef(
-(
-  { image, annotations, setAnnotations, selectedViolation, zoom },
-  stageRef
-) => {
+function ImageCanvas({
+  image,
+  annotations,
+  setAnnotations,
+  selectedViolation,
+  zoom,
+}) {
   const [img] = useImage(image);
-
   const [newRect, setNewRect] = useState(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const stageRef = useRef(null);
+
+  // =========================
+  // FIX POINTER POSITION
+  // =========================
+  const getPointerPos = (stage) => {
+    const scale = stage.scaleX();
+    const pos = stage.getPointerPosition();
+    return {
+      x: pos.x / scale,
+      y: pos.y / scale,
+    };
+  };
 
   const handleMouseDown = (e) => {
     if (!selectedViolation) return;
 
-    setIsDrawing(true);
-    const pos = e.target.getStage().getPointerPosition();
+    const stage = e.target.getStage();
+    const { x, y } = getPointerPos(stage);
 
     setNewRect({
-      x: pos.x / zoom,
-      y: pos.y / zoom,
+      x,
+      y,
       width: 0,
       height: 0,
       violation: selectedViolation,
-      color: VIOLATION_COLORS[selectedViolation],
+      color: VIOLATION_COLORS[selectedViolation] || "#FF0000",
     });
   };
 
   const handleMouseMove = (e) => {
-    if (!isDrawing || !newRect) return;
+    if (!newRect) return;
 
-    const pos = e.target.getStage().getPointerPosition();
+    const stage = e.target.getStage();
+    const { x, y } = getPointerPos(stage);
 
     setNewRect({
       ...newRect,
-      width: pos.x / zoom - newRect.x,
-      height: pos.y / zoom - newRect.y,
+      width: x - newRect.x,
+      height: y - newRect.y,
     });
   };
 
   const handleMouseUp = () => {
-    setIsDrawing(false);
-
     if (!newRect) return;
 
-    const rect = {
+    const finalized = {
       ...newRect,
-      x: Math.min(newRect.x, newRect.x + newRect.width),
-      y: Math.min(newRect.y, newRect.y + newRect.height),
       width: Math.abs(newRect.width),
       height: Math.abs(newRect.height),
+      x: newRect.width < 0 ? newRect.x + newRect.width : newRect.x,
+      y: newRect.height < 0 ? newRect.y + newRect.height : newRect.y,
     };
 
-    if (rect.width > 5 && rect.height > 5) {
-      setAnnotations([...annotations, rect]);
+    if (finalized.width > 5 && finalized.height > 5) {
+      setAnnotations([...annotations, finalized]);
     }
 
     setNewRect(null);
   };
 
   return (
-    <Stage
-      ref={stageRef}
-      width={900}
-      height={600}
-      scaleX={zoom}
-      scaleY={zoom}
-      draggable={!isDrawing}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      style={{
-        border: "2px solid #eee",
-        borderRadius: "12px",
-        background: "#fff",
-        cursor: selectedViolation ? "crosshair" : "not-allowed",
-      }}
-    >
-      <Layer>
-        {img && <KonvaImage image={img} />}
+    <div className="canvas-wrapper">
+      <Stage
+        ref={stageRef}
+        width={img ? img.width : 800}
+        height={img ? img.height : 600}
+        scaleX={zoom}
+        scaleY={zoom}
+        draggable={false}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        style={{
+          border: "2px solid #F3D9BE",
+          borderRadius: "8px",
+          background: "#fff",
+          cursor: "crosshair",
+          touchAction: "none",
+        }}
+      >
+        <Layer>
+          {img && <KonvaImage image={img} />}
 
-        {annotations.map((ann, i) => (
-          <Rect
-            key={i}
-            x={ann.x}
-            y={ann.y}
-            width={ann.width}
-            height={ann.height}
-            fill={ann.color + "40"}
-            stroke={ann.color}
-            strokeWidth={2}
-            draggable
-            onDragEnd={(e) => {
-              const copy = [...annotations];
-              copy[i].x = e.target.x();
-              copy[i].y = e.target.y();
-              setAnnotations(copy);
-            }}
-          />
-        ))}
+          {annotations.map((ann, i) => (
+            <Rect
+              key={i}
+              x={ann.x}
+              y={ann.y}
+              width={ann.width}
+              height={ann.height}
+              fill={ann.color + "33"}
+              stroke={ann.color}
+              strokeWidth={2}
+              draggable
+              onDragEnd={(e) => {
+                const updated = [...annotations];
+                updated[i] = {
+                  ...updated[i],
+                  x: e.target.x(),
+                  y: e.target.y(),
+                };
+                setAnnotations(updated);
+              }}
+            />
+          ))}
 
-        {newRect && (
-          <Rect
-            x={newRect.x}
-            y={newRect.y}
-            width={newRect.width}
-            height={newRect.height}
-            fill={newRect.color + "40"}
-            stroke={newRect.color}
-            strokeWidth={2}
-          />
-        )}
-      </Layer>
-    </Stage>
+          {newRect && (
+            <Rect
+              x={newRect.x}
+              y={newRect.y}
+              width={Math.abs(newRect.width)}
+              height={Math.abs(newRect.height)}
+              fill={newRect.color + "33"}
+              stroke={newRect.color}
+              strokeWidth={2}
+            />
+          )}
+        </Layer>
+      </Stage>
+    </div>
   );
-});
+}
 
 export default ImageCanvas;
