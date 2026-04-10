@@ -3,55 +3,55 @@ import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
 const VIOLATION_COLORS = {
-  "Peeling Paint": "#FF0000",
-  "Vehicles on Unpaved": "#00FF00",
-  "Abandoned/Junk Vehicles": "#0000FF",
-  "Overgrown Vegetation": "#FFA500",
-  "Bad Roof": "#800080",
-  "Broken Window": "#008080",
-  "Broken Door": "#FFC0CB",
-  "Rubbish / Garbage": "#808080",
-  "Damaged Walk/Driveway": "#000000",
-  "Damaged Siding / Soffit": "#00FFFF",
-  "Damaged Foundation": "#800000",
-  "Damaged Porch / Steps": "#008000",
-  "Abandoned / Unsafe": "#800000",
+  "Peeling Paint": "#FF4B4B",
+  "Vehicles on Unpaved": "#2ECC71",
+  "Abandoned/Junk Vehicles": "#3498DB",
+  "Overgrown Vegetation": "#F39C12",
+  "Bad Roof": "#9B59B6",
+  "Broken Window": "#1ABC9C",
+  "Broken Door": "#E67E22",
+  "Rubbish / Garbage": "#7F8C8D",
+  "Damaged Walk/Driveway": "#34495E",
+  "Damaged Siding / Soffit": "#00BCD4",
+  "Damaged Foundation": "#8E44AD",
+  "Damaged Porch / Steps": "#27AE60",
+  "Abandoned / Unsafe": "#C0392B",
 };
 
 const ImageCanvas = forwardRef(
-({ image, annotations, setAnnotations, selectedViolation }, stageRef) => {
+(
+  { image, annotations, setAnnotations, selectedViolation },
+  stageRef
+) => {
   const [img] = useImage(image);
 
   const [newRect, setNewRect] = useState(null);
+  const [isDrawing, setIsDrawing] = useState(false);
 
-  // zoom + pan
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
-  const CANVAS_W = 900;
-  const CANVAS_H = 600;
+  const W = 900;
+  const H = 600;
 
-  // 🎯 FIT IMAGE ON LOAD (IMPORTANT)
+  // 📌 FIT IMAGE INIT
   useEffect(() => {
     if (!img) return;
 
-    const scale = Math.min(
-      CANVAS_W / img.width,
-      CANVAS_H / img.height
-    );
+    const s = Math.min(W / img.width, H / img.height);
 
-    setScale(scale);
-
+    setScale(s);
     setPosition({
-      x: (CANVAS_W - img.width * scale) / 2,
-      y: (CANVAS_H - img.height * scale) / 2,
+      x: (W - img.width * s) / 2,
+      y: (H - img.height * s) / 2,
     });
   }, [img]);
 
-  // DRAW
+  // 🖱️ START DRAW
   const handleMouseDown = (e) => {
-    const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
+    setIsDrawing(true);
+
+    const pos = e.target.getStage().getPointerPosition();
 
     setNewRect({
       x: (pos.x - position.x) / scale,
@@ -63,11 +63,11 @@ const ImageCanvas = forwardRef(
     });
   };
 
+  // 🖱️ DRAWING
   const handleMouseMove = (e) => {
-    if (!newRect) return;
+    if (!isDrawing || !newRect) return;
 
-    const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
+    const pos = e.target.getStage().getPointerPosition();
 
     setNewRect({
       ...newRect,
@@ -76,7 +76,10 @@ const ImageCanvas = forwardRef(
     });
   };
 
+  // 🖱️ STOP DRAW
   const handleMouseUp = () => {
+    setIsDrawing(false);
+
     if (!newRect) return;
 
     const rect = {
@@ -94,12 +97,11 @@ const ImageCanvas = forwardRef(
     setNewRect(null);
   };
 
-  // ZOOM
+  // 🔍 ZOOM
   const handleWheel = (e) => {
     e.evt.preventDefault();
 
-    const scaleBy = 1.08;
-
+    const scaleBy = 1.1;
     const stage = e.target.getStage();
     const pointer = stage.getPointerPosition();
 
@@ -111,7 +113,7 @@ const ImageCanvas = forwardRef(
     let newScale =
       e.evt.deltaY > 0 ? scale / scaleBy : scale * scaleBy;
 
-    newScale = Math.max(0.5, Math.min(newScale, 5));
+    newScale = Math.max(0.5, Math.min(newScale, 6));
 
     setScale(newScale);
 
@@ -121,8 +123,10 @@ const ImageCanvas = forwardRef(
     });
   };
 
-  // PAN
+  // 🖐️ PAN
   const handleDragEnd = (e) => {
+    if (isDrawing) return;
+
     setPosition({
       x: e.target.x(),
       y: e.target.y(),
@@ -132,13 +136,13 @@ const ImageCanvas = forwardRef(
   return (
     <Stage
       ref={stageRef}
-      width={CANVAS_W}
-      height={CANVAS_H}
+      width={W}
+      height={H}
       scaleX={scale}
       scaleY={scale}
       x={position.x}
       y={position.y}
-      draggable
+      draggable={!isDrawing}
       onDragEnd={handleDragEnd}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
@@ -146,9 +150,9 @@ const ImageCanvas = forwardRef(
       onMouseUp={handleMouseUp}
       style={{
         border: "2px solid #ddd",
+        borderRadius: "12px",
         background: "#fff",
-        borderRadius: "10px",
-        cursor: "crosshair",
+        cursor: isDrawing ? "crosshair" : "grab",
       }}
     >
       <Layer>
@@ -161,7 +165,7 @@ const ImageCanvas = forwardRef(
             y={ann.y}
             width={ann.width}
             height={ann.height}
-            fill={ann.color + "33"}
+            fill={ann.color + "30"}
             stroke={ann.color}
             strokeWidth={2}
             draggable
@@ -180,8 +184,9 @@ const ImageCanvas = forwardRef(
             y={newRect.y}
             width={newRect.width}
             height={newRect.height}
-            fill={newRect.color + "33"}
+            fill={newRect.color + "30"}
             stroke={newRect.color}
+            strokeWidth={2}
           />
         )}
       </Layer>
