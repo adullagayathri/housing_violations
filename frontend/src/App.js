@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-import ViolationToolbar from "./components/ViolationToolbar";
 import ImageCanvas from "./components/ImageCanvas";
 import AnnotationPreview from "./components/AnnotationPreview";
 import UploadPanel from "./components/UploadPanel";
@@ -7,34 +6,33 @@ import SaveControls from "./components/SaveControls";
 import "./App.css";
 
 const VIOLATION_COLORS = {
-  "Peeling Paint": "#FF0000",
-  "Vehicles on Unpaved": "#00FF00",
-  "Abandoned/Junk Vehicles": "#0000FF",
-  "Overgrown Vegetation": "#FFA500",
-  "Bad Roof": "#800080",
-  "Broken Window": "#008080",
-  "Broken Door": "#FFC0CB",
-  "Rubbish / Garbage": "#808080",
-  "Damaged Walk/Driveway": "#000000",
-  "Damaged Siding / Soffit": "#00FFFF",
-  "Damaged Foundation": "#800000",
-  "Damaged Porch / Steps": "#008000",
-  "Abandoned / Unsafe": "#800000",
+  "Peeling Paint": "#e6194b",
+  "Vehicles on Unpaved": "#3cb44b",
+  "Abandoned/Junk Vehicles": "#4363d8",
+  "Overgrown Vegetation": "#f58231",
+  "Bad Roof": "#911eb4",
+  "Broken Window": "#46f0f0",
+  "Broken Door": "#f032e6",
+  "Rubbish / Garbage": "#bcf60c",
+  "Damaged Walk/Driveway": "#fabebe",
+  "Damaged Siding / Soffit": "#008080",
+  "Damaged Foundation": "#e6beff",
+  "Damaged Porch / Steps": "#9a6324",
+  "Abandoned / Unsafe": "#fffac8",
 };
 
 function App() {
   const [images, setImages] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
-  const [selectedViolation, setSelectedViolation] = useState("Peeling Paint");
+  const [selectedViolation, setSelectedViolation] = useState(""); // ✅ no default
   const [annotations, setAnnotations] = useState([]);
   const [imageSource, setImageSource] = useState("Upload Images");
 
-  // ✅ ZOOM STATE
   const [scale, setScale] = useState(1);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const stageRef = useRef(null);
 
-  // ✅ Reset zoom when switching images
   useEffect(() => {
     setScale(1);
   }, [selectedImage]);
@@ -78,102 +76,143 @@ function App() {
     })
       .then((res) => res.json())
       .then(() => alert("✅ Saved to Salesforce!"))
-      .catch((err) => alert("❌ Error saving to Salesforce: " + err));
+      .catch((err) => alert("❌ Error saving: " + err));
   };
 
   return (
     <div className="App">
       <h1>🏠 House Issue Marking Tool</h1>
-      <p>Upload house images, choose a violation, draw a box, and save all violations.</p>
 
-      {/* ✅ HELP BOX */}
+      {/* HELP BOX */}
       <div className="help-box">
         <b>How to use:</b><br />
-        1. Upload images or load from folder<br />
-        2. Choose an image<br />
-        3. Choose a violation<br />
-        4. Draw rectangles → auto added<br />
-        5. Undo if needed<br />
-        6. Click <b>Save JSON</b>
+        1. Upload images<br />
+        2. Choose image<br />
+        3. Select violation<br />
+        4. Draw box<br />
+        5. Click Save
 
-        <div
-          style={{
-            marginTop: "10px",
-            padding: "10px",
-            backgroundColor: "#fff3cd",
-            border: "1px solid #ffeeba",
-            borderRadius: "6px",
-            color: "#856404",
-            fontWeight: "bold",
-          }}
-        >
-          ⚠️ IMPORTANT: Don’t forget to click <u>Save JSON</u> before switching images!
+        <div style={{
+          marginTop: "10px",
+          padding: "10px",
+          background: "#fff3cd",
+          border: "1px solid #ffeeba",
+          borderRadius: "6px",
+          fontWeight: "bold"
+        }}>
+          ⚠️ Don’t forget to SAVE before changing image!
         </div>
       </div>
 
       {/* IMAGE SOURCE */}
-      <div style={{ marginBottom: "20px" }}>
-        <label>
-          <input
-            type="radio"
-            value="Upload Images"
-            checked={imageSource === "Upload Images"}
-            onChange={(e) => setImageSource(e.target.value)}
-          />{" "}
-          Upload Images
-        </label>
+      <UploadPanel
+        images={images}
+        setImages={setImages}
+        setSelectedImage={setSelectedImage}
+      />
 
-        <label style={{ marginLeft: "20px" }}>
-          <input
-            type="radio"
-            value="Load From Folder"
-            checked={imageSource === "Load From Folder"}
-            onChange={(e) => setImageSource(e.target.value)}
-          />{" "}
-          Load From Folder
-        </label>
-      </div>
-
-      {imageSource && (
-        <UploadPanel
-          images={images}
-          setImages={setImages}
-          setSelectedImage={setSelectedImage}
-        />
-      )}
-
+      {/* IMAGE SELECTOR */}
       {Object.keys(images).length > 0 && (
         <div style={{ marginBottom: "20px" }}>
-          <label>
-            <b>Choose Image:</b>
+          <label style={{ fontWeight: "bold", fontSize: "16px" }}>
+            Change Image Here:
           </label>
+          <br />
           <select
             value={selectedImage}
             onChange={(e) => setSelectedImage(e.target.value)}
-            style={{ padding: "6px", marginLeft: "10px" }}
+            style={{
+              marginTop: "8px",
+              padding: "10px",
+              fontSize: "16px",
+              width: "320px",
+              borderRadius: "6px",
+            }}
           >
-            {Object.keys(images).map((imgName) => (
-              <option key={imgName} value={imgName}>
-                {imgName}
-              </option>
+            {Object.keys(images).map((img) => (
+              <option key={img} value={img}>{img}</option>
             ))}
           </select>
         </div>
       )}
 
       <div className="main-content">
-        <ViolationToolbar
-          selectedViolation={selectedViolation}
-          setSelectedViolation={setSelectedViolation}
-        />
-
         <div className="canvas-panel">
-          {/* ✅ ZOOM BUTTONS */}
+
+          {/* VIOLATION DROPDOWN */}
+          <div style={{ marginBottom: "15px", position: "relative" }}>
+            <label style={{ fontWeight: "bold" }}>Select Violation:</label>
+
+            <div
+              onClick={() => setShowDropdown(!showDropdown)}
+              style={{
+                marginTop: "8px",
+                padding: "10px",
+                border: "1px solid #ccc",
+                borderRadius: "6px",
+                width: "300px",
+                cursor: "pointer",
+                background: "#fff",
+              }}
+            >
+              {selectedViolation ? (
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <div style={{
+                    width: "12px",
+                    height: "12px",
+                    borderRadius: "50%",
+                    background: VIOLATION_COLORS[selectedViolation],
+                    marginRight: "10px"
+                  }} />
+                  {selectedViolation}
+                </div>
+              ) : "Select violation"}
+            </div>
+
+            {showDropdown && (
+              <div style={{
+                position: "absolute",
+                top: "70px",
+                width: "300px",
+                border: "1px solid #ccc",
+                background: "#fff",
+                zIndex: 10,
+                maxHeight: "200px",
+                overflowY: "auto"
+              }}>
+                {Object.keys(VIOLATION_COLORS).map((v) => (
+                  <div
+                    key={v}
+                    onClick={() => {
+                      setSelectedViolation(v);
+                      setShowDropdown(false);
+                    }}
+                    style={{
+                      padding: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <div style={{
+                      width: "12px",
+                      height: "12px",
+                      borderRadius: "50%",
+                      background: VIOLATION_COLORS[v],
+                      marginRight: "10px"
+                    }} />
+                    {v}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ZOOM */}
           <div style={{ marginBottom: "10px" }}>
             <button onClick={() => setScale((s) => Math.min(s + 0.2, 5))}>
               🔍 Zoom In
             </button>
-
             <button
               onClick={() => setScale((s) => Math.max(s - 0.2, 0.2))}
               style={{ marginLeft: "10px" }}
@@ -182,6 +221,7 @@ function App() {
             </button>
           </div>
 
+          {/* CANVAS */}
           {selectedImage && (
             <ImageCanvas
               image={images[selectedImage]}
