@@ -1,4 +1,4 @@
-import React, { useState, forwardRef } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
@@ -19,29 +19,47 @@ const VIOLATION_COLORS = {
 };
 
 const ImageCanvas = forwardRef(
-(
-  { image, annotations, setAnnotations, selectedViolation },
-  stageRef
-) => {
+({ image, annotations, setAnnotations, selectedViolation }, stageRef) => {
   const [img] = useImage(image);
 
   const [newRect, setNewRect] = useState(null);
 
-  // ZOOM + PAN STATE
+  // zoom + pan
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
+  const CANVAS_W = 900;
+  const CANVAS_H = 600;
+
+  // 🎯 FIT IMAGE ON LOAD (IMPORTANT)
+  useEffect(() => {
+    if (!img) return;
+
+    const scale = Math.min(
+      CANVAS_W / img.width,
+      CANVAS_H / img.height
+    );
+
+    setScale(scale);
+
+    setPosition({
+      x: (CANVAS_W - img.width * scale) / 2,
+      y: (CANVAS_H - img.height * scale) / 2,
+    });
+  }, [img]);
+
+  // DRAW
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
     const pos = stage.getPointerPosition();
 
     setNewRect({
-      x: pos.x,
-      y: pos.y,
+      x: (pos.x - position.x) / scale,
+      y: (pos.y - position.y) / scale,
       width: 0,
       height: 0,
       violation: selectedViolation,
-      color: VIOLATION_COLORS[selectedViolation] || "#FF0000",
+      color: VIOLATION_COLORS[selectedViolation],
     });
   };
 
@@ -53,8 +71,8 @@ const ImageCanvas = forwardRef(
 
     setNewRect({
       ...newRect,
-      width: pos.x - newRect.x,
-      height: pos.y - newRect.y,
+      width: (pos.x - position.x) / scale - newRect.x,
+      height: (pos.y - position.y) / scale - newRect.y,
     });
   };
 
@@ -79,20 +97,21 @@ const ImageCanvas = forwardRef(
   // ZOOM
   const handleWheel = (e) => {
     e.evt.preventDefault();
-    const scaleBy = 1.1;
+
+    const scaleBy = 1.08;
 
     const stage = e.target.getStage();
     const pointer = stage.getPointerPosition();
 
-    const oldScale = scale;
-
     const mousePointTo = {
-      x: (pointer.x - position.x) / oldScale,
-      y: (pointer.y - position.y) / oldScale,
+      x: (pointer.x - position.x) / scale,
+      y: (pointer.y - position.y) / scale,
     };
 
-    const newScale =
-      e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
+    let newScale =
+      e.evt.deltaY > 0 ? scale / scaleBy : scale * scaleBy;
+
+    newScale = Math.max(0.5, Math.min(newScale, 5));
 
     setScale(newScale);
 
@@ -102,15 +121,25 @@ const ImageCanvas = forwardRef(
     });
   };
 
+  // PAN
+  const handleDragEnd = (e) => {
+    setPosition({
+      x: e.target.x(),
+      y: e.target.y(),
+    });
+  };
+
   return (
     <Stage
       ref={stageRef}
-      width={900}
-      height={600}
+      width={CANVAS_W}
+      height={CANVAS_H}
       scaleX={scale}
       scaleY={scale}
       x={position.x}
       y={position.y}
+      draggable
+      onDragEnd={handleDragEnd}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -118,6 +147,7 @@ const ImageCanvas = forwardRef(
       style={{
         border: "2px solid #ddd",
         background: "#fff",
+        borderRadius: "10px",
         cursor: "crosshair",
       }}
     >
@@ -146,10 +176,10 @@ const ImageCanvas = forwardRef(
 
         {newRect && (
           <Rect
-            x={Math.min(newRect.x, newRect.x + newRect.width)}
-            y={Math.min(newRect.y, newRect.y + newRect.height)}
-            width={Math.abs(newRect.width)}
-            height={Math.abs(newRect.height)}
+            x={newRect.x}
+            y={newRect.y}
+            width={newRect.width}
+            height={newRect.height}
             fill={newRect.color + "33"}
             stroke={newRect.color}
           />
