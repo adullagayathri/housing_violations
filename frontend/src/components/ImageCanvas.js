@@ -27,25 +27,31 @@ function ImageCanvas({
 }) {
   const [img] = useImage(image);
   const [newRect, setNewRect] = useState(null);
+
+  // ✅ FIX: proper Konva ref (this solves "No image to save")
   const stageRef = useRef(null);
 
   // =========================
-  // FIX POINTER POSITION
+  // POINTER (ZOOM SAFE)
   // =========================
-  const getPointerPos = (stage) => {
-    const scale = stage.scaleX();
+  const getPointer = (stage) => {
+    const scale = stage.scaleX() || 1;
     const pos = stage.getPointerPosition();
+
     return {
       x: pos.x / scale,
       y: pos.y / scale,
     };
   };
 
+  // =========================
+  // DRAW START
+  // =========================
   const handleMouseDown = (e) => {
     if (!selectedViolation) return;
 
     const stage = e.target.getStage();
-    const { x, y } = getPointerPos(stage);
+    const { x, y } = getPointer(stage);
 
     setNewRect({
       x,
@@ -57,32 +63,44 @@ function ImageCanvas({
     });
   };
 
+  // =========================
+  // DRAW MOVE
+  // =========================
   const handleMouseMove = (e) => {
     if (!newRect) return;
 
     const stage = e.target.getStage();
-    const { x, y } = getPointerPos(stage);
+    const { x, y } = getPointer(stage);
 
-    setNewRect({
-      ...newRect,
-      width: x - newRect.x,
-      height: y - newRect.y,
-    });
+    setNewRect((prev) => ({
+      ...prev,
+      width: x - prev.x,
+      height: y - prev.y,
+    }));
   };
 
+  // =========================
+  // DRAW END
+  // =========================
   const handleMouseUp = () => {
     if (!newRect) return;
 
-    const finalized = {
+    const rect = {
       ...newRect,
       width: Math.abs(newRect.width),
       height: Math.abs(newRect.height),
-      x: newRect.width < 0 ? newRect.x + newRect.width : newRect.x,
-      y: newRect.height < 0 ? newRect.y + newRect.height : newRect.y,
+      x:
+        newRect.width < 0
+          ? newRect.x + newRect.width
+          : newRect.x,
+      y:
+        newRect.height < 0
+          ? newRect.y + newRect.height
+          : newRect.y,
     };
 
-    if (finalized.width > 5 && finalized.height > 5) {
-      setAnnotations([...annotations, finalized]);
+    if (rect.width > 5 && rect.height > 5) {
+      setAnnotations((prev) => [...prev, rect]);
     }
 
     setNewRect(null);
@@ -91,7 +109,9 @@ function ImageCanvas({
   return (
     <div className="canvas-wrapper">
       <Stage
-        ref={stageRef}
+        ref={(node) => {
+          stageRef.current = node;
+        }}
         width={img ? img.width : 800}
         height={img ? img.height : 600}
         scaleX={zoom}
@@ -104,8 +124,7 @@ function ImageCanvas({
           border: "2px solid #F3D9BE",
           borderRadius: "8px",
           background: "#fff",
-          cursor: "crosshair",
-          touchAction: "none",
+          cursor: selectedViolation ? "crosshair" : "not-allowed",
         }}
       >
         <Layer>
