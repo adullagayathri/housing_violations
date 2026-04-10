@@ -9,9 +9,14 @@ import "./App.css";
 function App() {
   const [images, setImages] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
-  const [selectedViolation, setSelectedViolation] = useState("Peeling Paint");
+
+  // 🚨 IMPORTANT: no default selection
+  const [selectedViolation, setSelectedViolation] = useState(null);
+
   const [annotations, setAnnotations] = useState([]);
   const [imageSource, setImageSource] = useState("Upload Images");
+
+  const [zoom, setZoom] = useState(1);
 
   const stageRef = useRef(null);
 
@@ -58,7 +63,7 @@ function App() {
         return data;
       })
       .then((data) => {
-        alert(`✅ Saved successfully!\nRecord ID: ${data.sfId}`);
+        alert(`✅ Saved successfully!\nRecord ID: ${data.recordId}`);
       })
       .catch((err) => {
         alert("❌ Error saving: " + err.message);
@@ -67,38 +72,24 @@ function App() {
 
   return (
     <div className="App">
-
       <h1>🏠 House Issue Marking Tool</h1>
 
-      {/* Instructions */}
+      {/* HELP BOX */}
       <div className="help-box">
-        <h3>🧾 How to Use</h3>
+        <h3>🧓 Easy Instructions</h3>
 
-        <p>1. Select image</p>
-        <p>2. Scroll to zoom 🔍</p>
-        <p>3. Drag background to move image</p>
-        <p>4. Draw boxes by dragging</p>
+        <p>👉 First select a problem type (required)</p>
+        <p>👉 Then draw on image</p>
+        <p>👉 Drag boxes to move them</p>
+        <p>👉 Scroll or buttons to zoom</p>
+        <p>👉 Click UNDO if mistake</p>
 
-        <br />
-
-        <b>✏️ Box Controls:</b>
-        <p>• Drag box = move it</p>
-        <p>• Resize box = edges</p>
-        <p>• Draw again = add more boxes</p>
-
-        <br />
-
-        <b>↩️ Mistakes:</b>
-        <p>• Click UNDO to remove last box</p>
-
-        <br />
-
-        <b style={{ color: "red" }}>
+        <p style={{ color: "red", fontWeight: "bold" }}>
           ⚠️ Always click SAVE after finishing
-        </b>
+        </p>
       </div>
 
-      {/* Image source */}
+      {/* IMAGE SOURCE */}
       <div style={{ marginBottom: 20 }}>
         <label>
           <input
@@ -121,6 +112,7 @@ function App() {
         </label>
       </div>
 
+      {/* UPLOAD */}
       {imageSource && (
         <UploadPanel
           images={images}
@@ -129,23 +121,36 @@ function App() {
         />
       )}
 
-      {/* selector */}
+      {/* IMAGE SELECT */}
       {Object.keys(images).length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <label><b>Select Image:</b></label>
           <select
-            value={selectedImage}
+            value={selectedImage || ""}
             onChange={(e) => setSelectedImage(e.target.value)}
             style={{ marginLeft: 10 }}
           >
             {Object.keys(images).map((img) => (
-              <option key={img} value={img}>{img}</option>
+              <option key={img} value={img}>
+                {img}
+              </option>
             ))}
           </select>
         </div>
       )}
 
-      {/* canvas */}
+      {/* ZOOM BUTTONS */}
+      <div style={{ marginBottom: 10, display: "flex", gap: 10 }}>
+        <button onClick={() => setZoom((z) => Math.min(z + 0.2, 3))}>
+          🔍 Zoom In
+        </button>
+
+        <button onClick={() => setZoom((z) => Math.max(z - 0.2, 0.5))}>
+          🔎 Zoom Out
+        </button>
+      </div>
+
+      {/* MAIN */}
       <div className="main-content">
         <ViolationToolbar
           selectedViolation={selectedViolation}
@@ -160,6 +165,7 @@ function App() {
               annotations={annotations}
               setAnnotations={setAnnotations}
               selectedViolation={selectedViolation}
+              zoom={zoom}
             />
           )}
 
