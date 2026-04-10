@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
@@ -18,133 +18,109 @@ const VIOLATION_COLORS = {
   "Abandoned / Unsafe": "#800000",
 };
 
-function ImageCanvas({
-  stageRef,
-  image,
-  annotations,
-  setAnnotations,
-  selectedViolation,
-  zoom,
-}) {
+function ImageCanvas({ image, annotations, setAnnotations, selectedViolation, stageRef }) {
   const [img] = useImage(image);
   const [newRect, setNewRect] = useState(null);
 
-  // SAFE POINTER (handles zoom correctly)
-  const getPointer = (stage) => {
-    const scale = stage.scaleX() || 1;
-    const pos = stage.getPointerPosition();
-
-    return {
-      x: pos.x / scale,
-      y: pos.y / scale,
-    };
-  };
-
   const handleMouseDown = (e) => {
-    if (!selectedViolation) return;
-
     const stage = e.target.getStage();
-    const { x, y } = getPointer(stage);
+    if (!stage) return;
+    const pos = stage.getPointerPosition();
+    if (!pos) return;
 
     setNewRect({
-      x,
-      y,
+      x: pos.x,
+      y: pos.y,
       width: 0,
       height: 0,
       violation: selectedViolation,
-      color: VIOLATION_COLORS[selectedViolation],
+      color: VIOLATION_COLORS[selectedViolation] || "#FF0000",
     });
   };
 
   const handleMouseMove = (e) => {
     if (!newRect) return;
-
     const stage = e.target.getStage();
-    const { x, y } = getPointer(stage);
+    if (!stage) return;
+    const pos = stage.getPointerPosition();
+    if (!pos) return;
 
-    setNewRect((prev) => ({
-      ...prev,
-      width: x - prev.x,
-      height: y - prev.y,
-    }));
+    setNewRect({ ...newRect, width: pos.x - newRect.x, height: pos.y - newRect.y });
   };
 
   const handleMouseUp = () => {
     if (!newRect) return;
 
-    const rect = {
-      ...newRect,
-      width: Math.abs(newRect.width),
-      height: Math.abs(newRect.height),
-      x: newRect.width < 0 ? newRect.x + newRect.width : newRect.x,
-      y: newRect.height < 0 ? newRect.y + newRect.height : newRect.y,
-    };
-
-    if (rect.width > 5 && rect.height > 5) {
-      setAnnotations((prev) => [...prev, rect]);
+    if (Math.abs(newRect.width) > 5 && Math.abs(newRect.height) > 5) {
+      const finalizedRect = {
+        ...newRect,
+        width: Math.abs(newRect.width),
+        height: Math.abs(newRect.height),
+        x: newRect.width < 0 ? newRect.x + newRect.width : newRect.x,
+        y: newRect.height < 0 ? newRect.y + newRect.height : newRect.y,
+      };
+      setAnnotations([...annotations, finalizedRect]);
     }
-
     setNewRect(null);
   };
 
   return (
-    <div className="canvas-wrapper">
-      <Stage
-        ref={stageRef}
-        width={img ? img.width : 800}
-        height={img ? img.height : 600}
-        scaleX={zoom}
-        scaleY={zoom}
-        draggable={false}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        style={{
-          border: "2px solid #f3d9be",
-          borderRadius: "8px",
-          cursor: selectedViolation ? "crosshair" : "default",
-        }}
-      >
-        <Layer>
-          {img && <KonvaImage image={img} />}
-
-          {annotations.map((a, i) => (
-            <Rect
-              key={i}
-              x={a.x}
-              y={a.y}
-              width={a.width}
-              height={a.height}
-              fill={a.color + "33"}
-              stroke={a.color}
-              strokeWidth={2}
-              draggable
-              onDragEnd={(e) => {
-                const updated = [...annotations];
-                updated[i] = {
-                  ...updated[i],
-                  x: e.target.x(),
-                  y: e.target.y(),
-                };
-                setAnnotations(updated);
-              }}
-            />
-          ))}
-
-          {newRect && (
-            <Rect
-              x={newRect.x}
-              y={newRect.y}
-              width={Math.abs(newRect.width)}
-              height={Math.abs(newRect.height)}
-              fill={newRect.color + "33"}
-              stroke={newRect.color}
-              strokeWidth={2}
-            />
-          )}
-        </Layer>
-      </Stage>
-    </div>
+    <Stage
+      width={img ? img.width : 800}
+      height={img ? img.height : 600}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      ref={stageRef}
+      style={{ border: "2px solid #F3D9BE", borderRadius: "8px", background: "#fff", cursor: "crosshair" }}
+    >
+      <Layer>
+        {img && <KonvaImage image={img} />}
+        {annotations.map((ann, i) => (
+          <Rect
+            key={i}
+            x={ann.x}
+            y={ann.y}
+            width={ann.width}
+            height={ann.height}
+            fill={ann.color + "33"}
+            stroke={ann.color}
+            strokeWidth={2}
+            draggable
+            onDragEnd={(e) => {
+              const newAnnotations = [...annotations];
+              newAnnotations[i] = { ...newAnnotations[i], x: e.target.x(), y: e.target.y() };
+              setAnnotations(newAnnotations);
+            }}
+            onTransformEnd={(e) => {
+              const node = e.target;
+              const newAnnotations = [...annotations];
+              newAnnotations[i] = {
+                ...newAnnotations[i],
+                x: node.x(),
+                y: node.y(),
+                width: node.width() * node.scaleX(),
+                height: node.height() * node.scaleY(),
+              };
+              node.scaleX(1);
+              node.scaleY(1);
+              setAnnotations(newAnnotations);
+            }}
+          />
+        ))}
+        {newRect && (
+          <Rect
+            x={newRect.width < 0 ? newRect.x + newRect.width : newRect.x}
+            y={newRect.height < 0 ? newRect.y + newRect.height : newRect.y}
+            width={Math.abs(newRect.width)}
+            height={Math.abs(newRect.height)}
+            fill={newRect.color + "33"}
+            stroke={newRect.color}
+            strokeWidth={2}
+          />
+        )}
+      </Layer>
+    </Stage>
   );
 }
 
