@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import ViolationToolbar from "./components/ViolationToolbar";
 import ImageCanvas from "./components/ImageCanvas";
 import AnnotationPreview from "./components/AnnotationPreview";
@@ -6,7 +6,6 @@ import UploadPanel from "./components/UploadPanel";
 import SaveControls from "./components/SaveControls";
 import "./App.css";
 
-// Universal color map
 const VIOLATION_COLORS = {
   "Peeling Paint": "#FF0000",
   "Vehicles on Unpaved": "#00FF00",
@@ -30,7 +29,15 @@ function App() {
   const [annotations, setAnnotations] = useState([]);
   const [imageSource, setImageSource] = useState("Upload Images");
 
+  // ✅ ZOOM STATE
+  const [scale, setScale] = useState(1);
+
   const stageRef = useRef(null);
+
+  // ✅ Reset zoom when switching images
+  useEffect(() => {
+    setScale(1);
+  }, [selectedImage]);
 
   const handleClearAll = () => {
     setImages({});
@@ -44,7 +51,7 @@ function App() {
 
   const getCanvasBase64 = () => {
     if (!stageRef.current) return null;
-    return stageRef.current.toDataURL({ pixelRatio: 1 }).split(",")[1]; // base64 only
+    return stageRef.current.toDataURL({ pixelRatio: 1 }).split(",")[1];
   };
 
   const handleSaveJSON = () => {
@@ -79,6 +86,7 @@ function App() {
       <h1>🏠 House Issue Marking Tool</h1>
       <p>Upload house images, choose a violation, draw a box, and save all violations.</p>
 
+      {/* ✅ HELP BOX */}
       <div className="help-box">
         <b>How to use:</b><br />
         1. Upload images or load from folder<br />
@@ -87,8 +95,23 @@ function App() {
         4. Draw rectangles → auto added<br />
         5. Undo if needed<br />
         6. Click <b>Save JSON</b>
+
+        <div
+          style={{
+            marginTop: "10px",
+            padding: "10px",
+            backgroundColor: "#fff3cd",
+            border: "1px solid #ffeeba",
+            borderRadius: "6px",
+            color: "#856404",
+            fontWeight: "bold",
+          }}
+        >
+          ⚠️ IMPORTANT: Don’t forget to click <u>Save JSON</u> before switching images!
+        </div>
       </div>
 
+      {/* IMAGE SOURCE */}
       <div style={{ marginBottom: "20px" }}>
         <label>
           <input
@@ -96,15 +119,18 @@ function App() {
             value="Upload Images"
             checked={imageSource === "Upload Images"}
             onChange={(e) => setImageSource(e.target.value)}
-          /> Upload Images
+          />{" "}
+          Upload Images
         </label>
+
         <label style={{ marginLeft: "20px" }}>
           <input
             type="radio"
             value="Load From Folder"
             checked={imageSource === "Load From Folder"}
             onChange={(e) => setImageSource(e.target.value)}
-          /> Load From Folder
+          />{" "}
+          Load From Folder
         </label>
       </div>
 
@@ -118,15 +144,18 @@ function App() {
 
       {Object.keys(images).length > 0 && (
         <div style={{ marginBottom: "20px" }}>
-          <label htmlFor="image-select"><b>Choose Image:</b> </label>
+          <label>
+            <b>Choose Image:</b>
+          </label>
           <select
-            id="image-select"
             value={selectedImage}
             onChange={(e) => setSelectedImage(e.target.value)}
             style={{ padding: "6px", marginLeft: "10px" }}
           >
             {Object.keys(images).map((imgName) => (
-              <option key={imgName} value={imgName}>{imgName}</option>
+              <option key={imgName} value={imgName}>
+                {imgName}
+              </option>
             ))}
           </select>
         </div>
@@ -139,6 +168,20 @@ function App() {
         />
 
         <div className="canvas-panel">
+          {/* ✅ ZOOM BUTTONS */}
+          <div style={{ marginBottom: "10px" }}>
+            <button onClick={() => setScale((s) => Math.min(s + 0.2, 5))}>
+              🔍 Zoom In
+            </button>
+
+            <button
+              onClick={() => setScale((s) => Math.max(s - 0.2, 0.2))}
+              style={{ marginLeft: "10px" }}
+            >
+              🔎 Zoom Out
+            </button>
+          </div>
+
           {selectedImage && (
             <ImageCanvas
               image={images[selectedImage]}
@@ -146,6 +189,7 @@ function App() {
               setAnnotations={setAnnotations}
               selectedViolation={selectedViolation}
               stageRef={stageRef}
+              scale={scale}
             />
           )}
 
