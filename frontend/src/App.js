@@ -24,26 +24,20 @@ const VIOLATION_COLORS = {
 function App() {
   const [images, setImages] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
-  const [selectedViolation, setSelectedViolation] = useState("");
+  const [selectedViolation, setSelectedViolation] = useState(null);
+
   const [annotations, setAnnotations] = useState([]);
 
   const [scale, setScale] = useState(1);
-  const [moveMode, setMoveMode] = useState(false); // ✅ ONLY for pan
+  const [moveMode, setMoveMode] = useState(false);
 
   const stageRef = useRef(null);
 
   useEffect(() => {
     setScale(1);
     setMoveMode(false);
-    setSelectedViolation("");
+    setSelectedViolation(null);
   }, [selectedImage]);
-
-  const handleClearAll = () => {
-    setImages({});
-    setSelectedImage(null);
-    setAnnotations([]);
-    setSelectedViolation("");
-  };
 
   const handleUndo = () => {
     setAnnotations((prev) => prev.slice(0, -1));
@@ -57,18 +51,16 @@ function App() {
   const handleSaveJSON = () => {
     if (!selectedImage) return;
 
-    const annotatedImageBase64 = getCanvasBase64();
-
     fetch("https://housing-violations.onrender.com/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         image_id: selectedImage,
         annotations,
-        image_base64: annotatedImageBase64,
+        image_base64: getCanvasBase64(),
       }),
     })
-      .then(() => alert("✅ Saved successfully!"))
+      .then(() => alert("✅ Saved successfully"))
       .catch((err) => alert("❌ Error: " + err));
   };
 
@@ -92,7 +84,9 @@ function App() {
             style={{ marginLeft: "10px", padding: "8px", width: "300px" }}
           >
             {Object.keys(images).map((img) => (
-              <option key={img} value={img}>{img}</option>
+              <option key={img} value={img}>
+                {img}
+              </option>
             ))}
           </select>
         </div>
@@ -109,13 +103,20 @@ function App() {
               key={v}
               onClick={() => {
                 setSelectedViolation(v);
-                setMoveMode(false); // switch to draw mode
+                setMoveMode(false);
               }}
               style={{
                 display: "flex",
                 alignItems: "center",
                 padding: "8px",
                 cursor: "pointer",
+                borderRadius: "6px",
+                backgroundColor:
+                  selectedViolation === v ? "#e6f2ff" : "transparent",
+                border:
+                  selectedViolation === v
+                    ? "2px solid #007bff"
+                    : "1px solid transparent",
               }}
             >
               <div
@@ -127,7 +128,13 @@ function App() {
                   marginRight: "10px",
                 }}
               />
-              {v}
+              <span
+                style={{
+                  fontWeight: selectedViolation === v ? "bold" : "normal",
+                }}
+              >
+                {v}
+              </span>
             </div>
           ))}
         </div>
@@ -135,12 +142,20 @@ function App() {
         {/* MAIN */}
         <div style={{ flex: 1, padding: "10px" }}>
 
-          {/* ZOOM + MOVE CONTROLS */}
+          {/* CONTROLS */}
           <div style={{ marginBottom: "10px" }}>
 
             <button
-              onClick={() => setMoveMode((m) => !m)}
-              style={{ marginRight: "10px" }}
+              onClick={() => setMoveMode((prev) => !prev)}
+              style={{
+                marginRight: "10px",
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: "none",
+                backgroundColor: moveMode ? "#4CAF50" : "#ddd",
+                color: moveMode ? "white" : "black",
+                cursor: "pointer",
+              }}
             >
               🖐️ Move {moveMode ? "ON" : "OFF"}
             </button>
@@ -174,7 +189,6 @@ function App() {
           <SaveControls
             onUndo={handleUndo}
             onSaveJSON={handleSaveJSON}
-            onClearAll={handleClearAll}
           />
 
           {selectedImage && (
