@@ -132,30 +132,47 @@ button.add-btn {
 }
 .violation-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 .violation-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px;
-  border-radius: 10px;
+  padding: 12px;
+  border-radius: 12px;
   cursor: pointer;
-  border: 2px solid transparent;
-  transition: 0.2s;
+  border: 1px solid #eee;
   background: #fff;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
+/* Hover */
 .violation-item:hover {
-  background: #fff7e6;
+  transform: translateY(-2px);
+  background: #fff7ed;
+  border-color: #ffd9a0;
 }
 
+/* ✅ BEAUTIFUL SELECTED STATE (NO BLACK BOX) */
 .violation-item.active {
-  border: 2px solid #ff9800;
-  background: #fff3e0;
-  transform: scale(1.03);
+  background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+  border: 1px solid #ff9800;
+  box-shadow: 0 6px 18px rgba(255, 152, 0, 0.25);
+}
+
+/* Left accent bar (very visible but NOT black) */
+.violation-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10%;
+  height: 80%;
+  width: 4px;
+  background: #ff9800;
+  border-radius: 4px;
 }
 
 .legend-dot {
@@ -163,6 +180,7 @@ button.add-btn {
   height: 14px;
   border-radius: 50%;
 }
+
 
 /* Canvas wrapper */
 .canvas-wrapper {
