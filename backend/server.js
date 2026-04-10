@@ -9,24 +9,15 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
 // =========================
-// Salesforce Auth Variables
+// Salesforce Auth
 // =========================
 let accessToken = null;
 let instanceUrl = null;
 
 // =========================
-// Fetch Salesforce Token
+// AUTH TOKEN
 // =========================
 async function fetchSalesforceToken() {
-  if (
-    !process.env.SF_CONSUMER_KEY ||
-    !process.env.SF_CONSUMER_SECRET ||
-    !process.env.SF_INSTANCE_URL
-  ) {
-    console.error("❌ Missing Salesforce env variables");
-    return;
-  }
-
   const data = qs.stringify({
     grant_type: "client_credentials",
     client_id: process.env.SF_CONSUMER_KEY,
@@ -37,21 +28,18 @@ async function fetchSalesforceToken() {
     const tokenUrl = `${process.env.SF_INSTANCE_URL}/services/oauth2/token`;
 
     const response = await axios.post(tokenUrl, data, {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
 
     accessToken = response.data.access_token;
     instanceUrl = response.data.instance_url;
 
-    console.log("✅ Salesforce token fetched");
+    console.log("✅ Salesforce token ready");
   } catch (err) {
     console.error("❌ Token error:", err.response?.data || err.message);
   }
 }
 
-// init auth
 fetchSalesforceToken();
 setInterval(fetchSalesforceToken, 55 * 60 * 1000);
 
@@ -59,30 +47,28 @@ setInterval(fetchSalesforceToken, 55 * 60 * 1000);
 // SAVE ENDPOINT
 // =========================
 app.post("/save", async (req, res) => {
-  const payload = req.body;
-
-  if (!payload?.image_id || !payload?.annotations) {
-    return res.status(400).json({ success: false, error: "Invalid payload" });
-  }
-
-  if (!accessToken || !instanceUrl) {
-    return res.status(500).json({ success: false, error: "Salesforce not ready" });
-  }
-
   try {
-    // =====================================================
-    // 1️⃣ CREATE SALESFORCE RECORD
-    // =====================================================
-    const recordPayload = {
-      Name: payload.image_id,
-      JSON__c: JSON.stringify(payload.annotations),
-      Image_Name__c: payload.image_id,
-      Uploaded_At__c: new Date().toISOString(),
-    };
+    const payload = req.body;
 
+    if (!payload?.image_id || !payload?.annotations) {
+      return res.status(400).json({ success: false, error: "Invalid payload" });
+    }
+
+    if (!accessToken || !instanceUrl) {
+      return res.status(500).json({ success: false, error: "Salesforce not ready" });
+    }
+
+    // =========================
+    // 1. CREATE RECORD
+    // =========================
     const recordRes = await axios.post(
       `${instanceUrl}/services/data/v58.0/sobjects/Housing_Data_Image__c/`,
-      recordPayload,
+      {
+        Name: payload.image_id,
+        JSON__c: JSON.stringify(payload.annotations),
+        Image_Name__c: payload.image_id,
+        Uploaded_At__c: new Date().toISOString(),
+      },
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -96,9 +82,9 @@ app.post("/save", async (req, res) => {
 
     let contentDocumentId = null;
 
-    // =====================================================
-    // 2️⃣ UPLOAD IMAGE (ContentVersion)
-    // =====================================================
+    // =========================
+    // 2. UPLOAD FILE
+    // =========================
     if (payload.image_base64) {
       const base64Data = payload.image_base64.includes(",")
         ? payload.image_base64.split(",")[1]
@@ -109,7 +95,7 @@ app.post("/save", async (req, res) => {
         {
           Title: payload.image_id,
           PathOnClient: `${payload.image_id}.png`,
-          VersionData: base64Data,
+          VersionData: Buffer.from(base64Data, "base64"),
         },
         {
           headers: {
@@ -121,9 +107,9 @@ app.post("/save", async (req, res) => {
 
       const contentVersionId = fileRes.data.id;
 
-      // =====================================================
-      // 3️⃣ GET ContentDocumentId
-      // =====================================================
+      // =========================
+      // 3. GET DOCUMENT ID
+      // =========================
       const queryRes = await axios.get(
         `${instanceUrl}/services/data/v58.0/query/?q=SELECT+ContentDocumentId+FROM+ContentVersion+WHERE+Id='${contentVersionId}'`,
         {
@@ -133,14 +119,15 @@ app.post("/save", async (req, res) => {
         }
       );
 
-      contentDocumentId =
-        queryRes.data.records?.[0]?.ContentDocumentId;
+      if (!queryRes.data.records || !queryRes.data.records.length) {
+        throw new Error("ContentDocumentId not found");
+      }
 
-      console.log("📄 ContentDocumentId:", contentDocumentId);
+      contentDocumentId = queryRes.data.records[0].ContentDocumentId;
 
-      // =====================================================
-      // 4️⃣ LINK TO RECORD
-      // =====================================================
+      // =========================
+      // 4. LINK TO RECORD
+      // =========================
       await axios.post(
         `${instanceUrl}/services/data/v58.0/sobjects/ContentDocumentLink/`,
         {
@@ -157,45 +144,16 @@ app.post("/save", async (req, res) => {
         }
       );
 
-      console.log("✅ Linked to record");
-
-      // =====================================================
-      // 5️⃣ LINK TO MASTER LIBRARY (IMPORTANT FIX)
-      // =====================================================
-      if (process.env.SF_LIBRARY_ID) {
-        await axios.post(
-          `${instanceUrl}/services/data/v58.0/sobjects/ContentDocumentLink/`,
-          {
-            ContentDocumentId: contentDocumentId,
-            LinkedEntityId: process.env.SF_LIBRARY_ID,
-            ShareType: "V",
-            Visibility: "AllUsers",
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        console.log("📁 Linked to Master Library");
-      }
+      console.log("✅ File linked to record");
     }
 
-    // =========================
-    // RESPONSE
-    // =========================
     res.json({
       success: true,
       recordId,
       contentDocumentId,
     });
   } catch (err) {
-    console.error(
-      "❌ Salesforce Error:",
-      err.response?.data || err.message
-    );
+    console.error("❌ Salesforce Error:", err.response?.data || err.message);
 
     res.status(500).json({
       success: false,
