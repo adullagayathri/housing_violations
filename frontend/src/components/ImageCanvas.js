@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
@@ -18,14 +18,36 @@ const VIOLATION_COLORS = {
   "Abandoned / Unsafe": "#800000",
 };
 
-function ImageCanvas({ image, annotations, setAnnotations, selectedViolation, stageRef }) {
+function ImageCanvas({
+  image,
+  annotations,
+  setAnnotations,
+  selectedViolation,
+  stageRef,
+  scale,
+}) {
   const [img] = useImage(image);
   const [newRect, setNewRect] = useState(null);
+
+  // ✅ Adjust pointer for zoom
+  const getScaledPointer = (stage) => {
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return null;
+
+    return {
+      x: pointer.x / scale,
+      y: pointer.y / scale,
+    };
+  };
 
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
     if (!stage) return;
-    const pos = stage.getPointerPosition();
+
+    // ❌ prevent drawing while dragging
+    if (stage.isDragging()) return;
+
+    const pos = getScaledPointer(stage);
     if (!pos) return;
 
     setNewRect({
@@ -40,12 +62,18 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation, st
 
   const handleMouseMove = (e) => {
     if (!newRect) return;
+
     const stage = e.target.getStage();
     if (!stage) return;
-    const pos = stage.getPointerPosition();
+
+    const pos = getScaledPointer(stage);
     if (!pos) return;
 
-    setNewRect({ ...newRect, width: pos.x - newRect.x, height: pos.y - newRect.y });
+    setNewRect({
+      ...newRect,
+      width: pos.x - newRect.x,
+      height: pos.y - newRect.y,
+    });
   };
 
   const handleMouseUp = () => {
@@ -59,8 +87,10 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation, st
         x: newRect.width < 0 ? newRect.x + newRect.width : newRect.x,
         y: newRect.height < 0 ? newRect.y + newRect.height : newRect.y,
       };
+
       setAnnotations([...annotations, finalizedRect]);
     }
+
     setNewRect(null);
   };
 
@@ -68,14 +98,29 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation, st
     <Stage
       width={img ? img.width : 800}
       height={img ? img.height : 600}
+      scaleX={scale}
+      scaleY={scale}
+      draggable={scale > 1}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onDragStart={(e) => {
+        e.target.container().style.cursor = "grabbing";
+      }}
+      onDragEnd={(e) => {
+        e.target.container().style.cursor = "grab";
+      }}
       ref={stageRef}
-      style={{ border: "2px solid #F3D9BE", borderRadius: "8px", background: "#fff", cursor: "crosshair" }}
+      style={{
+        border: "2px solid #F3D9BE",
+        borderRadius: "8px",
+        background: "#fff",
+        cursor: scale > 1 ? "grab" : "crosshair",
+      }}
     >
       <Layer>
         {img && <KonvaImage image={img} />}
+
         {annotations.map((ann, i) => (
           <Rect
             key={i}
@@ -89,25 +134,16 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation, st
             draggable
             onDragEnd={(e) => {
               const newAnnotations = [...annotations];
-              newAnnotations[i] = { ...newAnnotations[i], x: e.target.x(), y: e.target.y() };
-              setAnnotations(newAnnotations);
-            }}
-            onTransformEnd={(e) => {
-              const node = e.target;
-              const newAnnotations = [...annotations];
               newAnnotations[i] = {
                 ...newAnnotations[i],
-                x: node.x(),
-                y: node.y(),
-                width: node.width() * node.scaleX(),
-                height: node.height() * node.scaleY(),
+                x: e.target.x(),
+                y: e.target.y(),
               };
-              node.scaleX(1);
-              node.scaleY(1);
               setAnnotations(newAnnotations);
             }}
           />
         ))}
+
         {newRect && (
           <Rect
             x={newRect.width < 0 ? newRect.x + newRect.width : newRect.x}
