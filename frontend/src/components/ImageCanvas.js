@@ -10,30 +10,23 @@ function ImageCanvas({
   VIOLATION_COLORS,
   stageRef,
   scale,
-  mode,
+  moveMode,
 }) {
   const [img] = useImage(image);
   const [newRect, setNewRect] = useState(null);
-  const [isPanning, setIsPanning] = useState(false);
 
   const getPointer = (stage) => {
     const p = stage.getPointerPosition();
     return p ? { x: p.x / scale, y: p.y / scale } : null;
   };
 
-  // ---------------- Mouse Down ----------------
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
     if (!stage) return;
 
-    // PAN ONLY IN ZOOM MODE
-    if (mode === "zoom" && e.target.getClassName() === "Stage") {
-      setIsPanning(true);
-      return;
-    }
+    // MOVE MODE = allow dragging only
+    if (moveMode) return;
 
-    // DRAW ONLY IN DRAW MODE
-    if (mode !== "draw") return;
     if (!selectedViolation) return;
 
     const pos = getPointer(stage);
@@ -49,24 +42,11 @@ function ImageCanvas({
     });
   };
 
-  // ---------------- Mouse Move ----------------
   const handleMouseMove = (e) => {
+    if (moveMode) return;
+
     const stage = e.target.getStage();
-    if (!stage) return;
-
-    // PAN MOVE
-    if (isPanning) {
-      const pos = stage.position();
-      stage.position({
-        x: pos.x + e.evt.movementX,
-        y: pos.y + e.evt.movementY,
-      });
-      stage.batchDraw();
-      return;
-    }
-
-    // DRAW MOVE
-    if (!newRect) return;
+    if (!stage || !newRect) return;
 
     const pos = getPointer(stage);
     if (!pos) return;
@@ -78,13 +58,8 @@ function ImageCanvas({
     });
   };
 
-  // ---------------- Mouse Up ----------------
   const handleMouseUp = () => {
-    if (isPanning) {
-      setIsPanning(false);
-      return;
-    }
-
+    if (moveMode) return;
     if (!newRect) return;
 
     const rect = {
@@ -108,6 +83,7 @@ function ImageCanvas({
       height={img ? img.height : 600}
       scaleX={scale}
       scaleY={scale}
+      draggable={moveMode}   // ✅ ONLY MOVE MODE DRAGS
       ref={stageRef}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -115,13 +91,12 @@ function ImageCanvas({
       style={{
         border: "2px solid #ddd",
         background: "#fff",
-        cursor: mode === "zoom" ? (isPanning ? "grabbing" : "grab") : "crosshair",
+        cursor: moveMode ? "grab" : "crosshair",
       }}
     >
       <Layer>
         {img && <KonvaImage image={img} />}
 
-        {/* EXISTING ANNOTATIONS */}
         {annotations.map((a, i) => (
           <Rect
             key={i}
@@ -145,11 +120,18 @@ function ImageCanvas({
           />
         ))}
 
-        {/* NEW RECT */}
         {newRect && (
           <Rect
-            x={newRect.width < 0 ? newRect.x + newRect.width : newRect.x}
-            y={newRect.height < 0 ? newRect.y + newRect.height : newRect.y}
+            x={
+              newRect.width < 0
+                ? newRect.x + newRect.width
+                : newRect.x
+            }
+            y={
+              newRect.height < 0
+                ? newRect.y + newRect.height
+                : newRect.y
+            }
             width={Math.abs(newRect.width)}
             height={Math.abs(newRect.height)}
             fill="rgba(0,0,0,0.1)"
