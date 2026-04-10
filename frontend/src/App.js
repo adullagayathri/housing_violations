@@ -67,31 +67,38 @@ function App() {
 
   return (
     <div className="App">
+
       <h1>🏠 House Issue Marking Tool</h1>
 
+      {/* Instructions */}
       <div className="help-box">
-        <h3>🧾 How to Use This Tool</h3>
+        <h3>🧾 How to Use</h3>
 
         <p>1. Select image</p>
-        <p>2. Zoom with mouse wheel 🔍</p>
-        <p>3. Drag to draw boxes</p>
+        <p>2. Scroll to zoom 🔍</p>
+        <p>3. Drag background to move image</p>
+        <p>4. Draw boxes by dragging</p>
 
         <br />
+
         <b>✏️ Box Controls:</b>
-        <p>• Drag = move box</p>
-        <p>• Resize = edges</p>
-        <p>• Draw again = add more</p>
+        <p>• Drag box = move it</p>
+        <p>• Resize box = edges</p>
+        <p>• Draw again = add more boxes</p>
 
         <br />
+
         <b>↩️ Mistakes:</b>
-        <p>• Undo removes last box</p>
+        <p>• Click UNDO to remove last box</p>
 
         <br />
+
         <b style={{ color: "red" }}>
           ⚠️ Always click SAVE after finishing
         </b>
       </div>
 
+      {/* Image source */}
       <div style={{ marginBottom: 20 }}>
         <label>
           <input
@@ -122,6 +129,7 @@ function App() {
         />
       )}
 
+      {/* selector */}
       {Object.keys(images).length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <label><b>Select Image:</b></label>
@@ -137,6 +145,7 @@ function App() {
         </div>
       )}
 
+      {/* canvas */}
       <div className="main-content">
         <ViolationToolbar
           selectedViolation={selectedViolation}
