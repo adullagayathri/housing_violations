@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
@@ -19,6 +19,7 @@ const VIOLATION_COLORS = {
 };
 
 function ImageCanvas({
+  stageRef,
   image,
   annotations,
   setAnnotations,
@@ -28,12 +29,7 @@ function ImageCanvas({
   const [img] = useImage(image);
   const [newRect, setNewRect] = useState(null);
 
-  // ✅ FIX: proper Konva ref (this solves "No image to save")
-  const stageRef = useRef(null);
-
-  // =========================
-  // POINTER (ZOOM SAFE)
-  // =========================
+  // SAFE POINTER (handles zoom correctly)
   const getPointer = (stage) => {
     const scale = stage.scaleX() || 1;
     const pos = stage.getPointerPosition();
@@ -44,9 +40,6 @@ function ImageCanvas({
     };
   };
 
-  // =========================
-  // DRAW START
-  // =========================
   const handleMouseDown = (e) => {
     if (!selectedViolation) return;
 
@@ -59,13 +52,10 @@ function ImageCanvas({
       width: 0,
       height: 0,
       violation: selectedViolation,
-      color: VIOLATION_COLORS[selectedViolation] || "#FF0000",
+      color: VIOLATION_COLORS[selectedViolation],
     });
   };
 
-  // =========================
-  // DRAW MOVE
-  // =========================
   const handleMouseMove = (e) => {
     if (!newRect) return;
 
@@ -79,9 +69,6 @@ function ImageCanvas({
     }));
   };
 
-  // =========================
-  // DRAW END
-  // =========================
   const handleMouseUp = () => {
     if (!newRect) return;
 
@@ -89,14 +76,8 @@ function ImageCanvas({
       ...newRect,
       width: Math.abs(newRect.width),
       height: Math.abs(newRect.height),
-      x:
-        newRect.width < 0
-          ? newRect.x + newRect.width
-          : newRect.x,
-      y:
-        newRect.height < 0
-          ? newRect.y + newRect.height
-          : newRect.y,
+      x: newRect.width < 0 ? newRect.x + newRect.width : newRect.x,
+      y: newRect.height < 0 ? newRect.y + newRect.height : newRect.y,
     };
 
     if (rect.width > 5 && rect.height > 5) {
@@ -109,9 +90,7 @@ function ImageCanvas({
   return (
     <div className="canvas-wrapper">
       <Stage
-        ref={(node) => {
-          stageRef.current = node;
-        }}
+        ref={stageRef}
         width={img ? img.width : 800}
         height={img ? img.height : 600}
         scaleX={zoom}
@@ -121,24 +100,23 @@ function ImageCanvas({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         style={{
-          border: "2px solid #F3D9BE",
+          border: "2px solid #f3d9be",
           borderRadius: "8px",
-          background: "#fff",
-          cursor: selectedViolation ? "crosshair" : "not-allowed",
+          cursor: selectedViolation ? "crosshair" : "default",
         }}
       >
         <Layer>
           {img && <KonvaImage image={img} />}
 
-          {annotations.map((ann, i) => (
+          {annotations.map((a, i) => (
             <Rect
               key={i}
-              x={ann.x}
-              y={ann.y}
-              width={ann.width}
-              height={ann.height}
-              fill={ann.color + "33"}
-              stroke={ann.color}
+              x={a.x}
+              y={a.y}
+              width={a.width}
+              height={a.height}
+              fill={a.color + "33"}
+              stroke={a.color}
               strokeWidth={2}
               draggable
               onDragEnd={(e) => {
