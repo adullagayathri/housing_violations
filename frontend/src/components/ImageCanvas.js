@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef } from "react";
+import React, { useState, forwardRef } from "react";
 import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
@@ -28,10 +28,6 @@ const ImageCanvas = forwardRef(
   const [newRect, setNewRect] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  const W = 900;
-  const H = 600;
-
-  // 🚨 BLOCK DRAWING IF NO SELECTION
   const handleMouseDown = (e) => {
     if (!selectedViolation) return;
 
@@ -83,8 +79,8 @@ const ImageCanvas = forwardRef(
   return (
     <Stage
       ref={stageRef}
-      width={W}
-      height={H}
+      width={900}
+      height={600}
       scaleX={zoom}
       scaleY={zoom}
       draggable={!isDrawing}
@@ -92,7 +88,7 @@ const ImageCanvas = forwardRef(
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       style={{
-        border: "2px solid #ddd",
+        border: "2px solid #eee",
         borderRadius: "12px",
         background: "#fff",
         cursor: selectedViolation ? "crosshair" : "not-allowed",
@@ -109,7 +105,7 @@ const ImageCanvas = forwardRef(
             width={ann.width}
             height={ann.height}
             fill={ann.color + "40"}
-            stroke="#000"
+            stroke={ann.color}
             strokeWidth={2}
             draggable
             onDragEnd={(e) => {
