@@ -130,6 +130,39 @@ button.add-btn {
 .annotation-preview td {
   background-color: #fff;
 }
+.violation-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.violation-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: 0.2s;
+  background: #fff;
+}
+
+.violation-item:hover {
+  background: #fff7e6;
+}
+
+.violation-item.active {
+  border: 2px solid #ff9800;
+  background: #fff3e0;
+  transform: scale(1.03);
+}
+
+.legend-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
 
 /* Canvas wrapper */
 .canvas-wrapper {
