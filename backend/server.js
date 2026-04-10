@@ -9,14 +9,11 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
 // =========================
-// Salesforce Auth
+// AUTH
 // =========================
 let accessToken = null;
 let instanceUrl = null;
 
-// =========================
-// AUTH TOKEN
-// =========================
 async function fetchSalesforceToken() {
   const data = qs.stringify({
     grant_type: "client_credentials",
@@ -25,18 +22,18 @@ async function fetchSalesforceToken() {
   });
 
   try {
-    const tokenUrl = `${process.env.SF_INSTANCE_URL}/services/oauth2/token`;
+    const res = await axios.post(
+      `${process.env.SF_INSTANCE_URL}/services/oauth2/token`,
+      data,
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    );
 
-    const response = await axios.post(tokenUrl, data, {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
+    accessToken = res.data.access_token;
+    instanceUrl = res.data.instance_url;
 
-    accessToken = response.data.access_token;
-    instanceUrl = response.data.instance_url;
-
-    console.log("✅ Salesforce token ready");
+    console.log("✅ Salesforce connected");
   } catch (err) {
-    console.error("❌ Token error:", err.response?.data || err.message);
+    console.error("❌ Auth error:", err.response?.data || err.message);
   }
 }
 
@@ -44,18 +41,20 @@ fetchSalesforceToken();
 setInterval(fetchSalesforceToken, 55 * 60 * 1000);
 
 // =========================
-// SAVE ENDPOINT
+// SAVE API
 // =========================
 app.post("/save", async (req, res) => {
   try {
     const payload = req.body;
 
+    console.log("🔥 REQUEST RECEIVED");
+
     if (!payload?.image_id || !payload?.annotations) {
-      return res.status(400).json({ success: false, error: "Invalid payload" });
+      return res.status(400).json({ error: "Invalid payload" });
     }
 
     if (!accessToken || !instanceUrl) {
-      return res.status(500).json({ success: false, error: "Salesforce not ready" });
+      return res.status(500).json({ error: "Salesforce not ready" });
     }
 
     // =========================
@@ -78,12 +77,12 @@ app.post("/save", async (req, res) => {
     );
 
     const recordId = recordRes.data.id;
-    console.log("✅ Record created:", recordId);
+    console.log("✅ Record:", recordId);
 
     let contentDocumentId = null;
 
     // =========================
-    // 2. UPLOAD FILE
+    // 2. UPLOAD IMAGE
     // =========================
     if (payload.image_base64) {
       const base64Data = payload.image_base64.includes(",")
@@ -113,13 +112,11 @@ app.post("/save", async (req, res) => {
       const queryRes = await axios.get(
         `${instanceUrl}/services/data/v58.0/query/?q=SELECT+ContentDocumentId+FROM+ContentVersion+WHERE+Id='${contentVersionId}'`,
         {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { Authorization: `Bearer ${accessToken}` },
         }
       );
 
-      if (!queryRes.data.records || !queryRes.data.records.length) {
+      if (!queryRes.data.records?.length) {
         throw new Error("ContentDocumentId not found");
       }
 
@@ -144,28 +141,26 @@ app.post("/save", async (req, res) => {
         }
       );
 
-      console.log("✅ File linked to record");
+      console.log("✅ File linked");
     }
 
-    res.json({
+    return res.json({
       success: true,
       recordId,
       contentDocumentId,
     });
   } catch (err) {
-    console.error("❌ Salesforce Error:", err.response?.data || err.message);
+    console.error("❌ FULL ERROR:");
+    console.error(err.response?.data || err.message);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: err.response?.data || err.message,
+      debug: err.toString(),
     });
   }
 });
 
 // =========================
-// START SERVER
-// =========================
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
