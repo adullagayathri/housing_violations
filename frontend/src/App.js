@@ -6,23 +6,6 @@ import UploadPanel from "./components/UploadPanel";
 import SaveControls from "./components/SaveControls";
 import "./App.css";
 
-// Universal color map
-const VIOLATION_COLORS = {
-  "Peeling Paint": "#FF0000",
-  "Vehicles on Unpaved": "#00FF00",
-  "Abandoned/Junk Vehicles": "#0000FF",
-  "Overgrown Vegetation": "#FFA500",
-  "Bad Roof": "#800080",
-  "Broken Window": "#008080",
-  "Broken Door": "#FFC0CB",
-  "Rubbish / Garbage": "#808080",
-  "Damaged Walk/Driveway": "#000000",
-  "Damaged Siding / Soffit": "#00FFFF",
-  "Damaged Foundation": "#800000",
-  "Damaged Porch / Steps": "#008000",
-  "Abandoned / Unsafe": "#800000",
-};
-
 function App() {
   const [images, setImages] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
@@ -39,12 +22,12 @@ function App() {
   };
 
   const handleUndo = () => {
-    setAnnotations((prev) => prev.slice(0, prev.length - 1));
+    setAnnotations((prev) => prev.slice(0, -1));
   };
 
   const getCanvasBase64 = () => {
     if (!stageRef.current) return null;
-    return stageRef.current.toDataURL({ pixelRatio: 1 }).split(",")[1]; // base64 only
+    return stageRef.current.toDataURL({ pixelRatio: 1 }).split(",")[1];
   };
 
   const handleSaveJSON = () => {
@@ -71,56 +54,63 @@ function App() {
     })
       .then(async (res) => {
         const data = await res.json();
-    
-        if (!res.ok) {
-          throw new Error(data.error || "Server error");
-        }
-    
+        if (!res.ok) throw new Error(data.error || "Save failed");
         return data;
       })
       .then((data) => {
-        console.log("Salesforce Response:", data);
-    
-        alert(
-          `✅ Saved successfully!\nRecord ID: ${data.recordId || "N/A"}`
-        );
+        alert(`✅ Saved successfully!\nRecord ID: ${data.sfId}`);
       })
       .catch((err) => {
-        console.error(err);
-        alert("❌ Error saving to Salesforce: " + err.message);
+        alert("❌ Error saving: " + err.message);
       });
-  }; 
+  };
+
   return (
     <div className="App">
       <h1>🏠 House Issue Marking Tool</h1>
-      <p>Upload house images, choose a violation, draw a box, and save all violations.</p>
 
       <div className="help-box">
-        <b>How to use:</b><br />
-        1. Upload images or load from folder<br />
-        2. Choose an image<br />
-        3. Choose a violation<br />
-        4. Draw rectangles → auto added<br />
-        5. Undo if needed<br />
-        6. Click <b>Save JSON</b>
+        <h3>🧾 How to Use This Tool</h3>
+
+        <p>1. Select image</p>
+        <p>2. Zoom with mouse wheel 🔍</p>
+        <p>3. Drag to draw boxes</p>
+
+        <br />
+        <b>✏️ Box Controls:</b>
+        <p>• Drag = move box</p>
+        <p>• Resize = edges</p>
+        <p>• Draw again = add more</p>
+
+        <br />
+        <b>↩️ Mistakes:</b>
+        <p>• Undo removes last box</p>
+
+        <br />
+        <b style={{ color: "red" }}>
+          ⚠️ Always click SAVE after finishing
+        </b>
       </div>
 
-      <div style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: 20 }}>
         <label>
           <input
             type="radio"
             value="Upload Images"
             checked={imageSource === "Upload Images"}
             onChange={(e) => setImageSource(e.target.value)}
-          /> Upload Images
+          />
+          Upload Images
         </label>
-        <label style={{ marginLeft: "20px" }}>
+
+        <label style={{ marginLeft: 20 }}>
           <input
             type="radio"
             value="Load From Folder"
             checked={imageSource === "Load From Folder"}
             onChange={(e) => setImageSource(e.target.value)}
-          /> Load From Folder
+          />
+          Load From Folder
         </label>
       </div>
 
@@ -133,16 +123,15 @@ function App() {
       )}
 
       {Object.keys(images).length > 0 && (
-        <div style={{ marginBottom: "20px" }}>
-          <label htmlFor="image-select"><b>Choose Image:</b> </label>
+        <div style={{ marginBottom: 20 }}>
+          <label><b>Select Image:</b></label>
           <select
-            id="image-select"
             value={selectedImage}
             onChange={(e) => setSelectedImage(e.target.value)}
-            style={{ padding: "6px", marginLeft: "10px" }}
+            style={{ marginLeft: 10 }}
           >
-            {Object.keys(images).map((imgName) => (
-              <option key={imgName} value={imgName}>{imgName}</option>
+            {Object.keys(images).map((img) => (
+              <option key={img} value={img}>{img}</option>
             ))}
           </select>
         </div>
@@ -157,11 +146,11 @@ function App() {
         <div className="canvas-panel">
           {selectedImage && (
             <ImageCanvas
+              ref={stageRef}
               image={images[selectedImage]}
               annotations={annotations}
               setAnnotations={setAnnotations}
               selectedViolation={selectedViolation}
-              stageRef={stageRef}
             />
           )}
 
