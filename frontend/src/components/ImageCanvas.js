@@ -9,36 +9,28 @@ function ImageCanvas({
   selectedViolation,
   stageRef,
   scale,
+  VIOLATION_COLORS,
 }) {
   const [img] = useImage(image);
   const [newRect, setNewRect] = useState(null);
   const [isPanning, setIsPanning] = useState(false);
 
-  // Convert pointer based on zoom
   const getPointer = (stage) => {
     const p = stage.getPointerPosition();
-    if (!p) return null;
-
-    return {
-      x: p.x / scale,
-      y: p.y / scale,
-    };
+    return p ? { x: p.x / scale, y: p.y / scale } : null;
   };
 
-  // ---------------- Mouse Down ----------------
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
     if (!stage) return;
 
-    // 🖐️ PAN MODE (only when clicking empty space)
-    if (e.target.getClassName() === "Stage") {
-      if (scale > 1) {
-        setIsPanning(true);
-      }
+    // PAN START
+    if (e.target.getClassName() === "Stage" && scale > 1) {
+      setIsPanning(true);
       return;
     }
 
-    // ❌ must select violation
+    // DRAW ONLY IF VIOLATION SELECTED
     if (!selectedViolation) return;
 
     const pos = getPointer(stage);
@@ -50,29 +42,26 @@ function ImageCanvas({
       width: 0,
       height: 0,
       violation: selectedViolation,
-      color: "#e6194b", // default safe fallback (actual color handled in App)
+      color: VIOLATION_COLORS[selectedViolation],
     });
   };
 
-  // ---------------- Mouse Move ----------------
   const handleMouseMove = (e) => {
     const stage = e.target.getStage();
     if (!stage) return;
 
-    // 🖐️ PAN MODE
-    if (isPanning && scale > 1) {
+    // PAN MOVE
+    if (isPanning) {
       const pos = stage.position();
-
       stage.position({
         x: pos.x + e.evt.movementX,
         y: pos.y + e.evt.movementY,
       });
-
       stage.batchDraw();
       return;
     }
 
-    // ✏️ DRAW MODE
+    // DRAW MOVE
     if (!newRect) return;
 
     const pos = getPointer(stage);
@@ -85,7 +74,6 @@ function ImageCanvas({
     });
   };
 
-  // ---------------- Mouse Up ----------------
   const handleMouseUp = () => {
     if (isPanning) {
       setIsPanning(false);
@@ -94,22 +82,16 @@ function ImageCanvas({
 
     if (!newRect) return;
 
-    const finalized = {
+    const rect = {
       ...newRect,
       width: Math.abs(newRect.width),
       height: Math.abs(newRect.height),
-      x:
-        newRect.width < 0
-          ? newRect.x + newRect.width
-          : newRect.x,
-      y:
-        newRect.height < 0
-          ? newRect.y + newRect.height
-          : newRect.y,
+      x: newRect.width < 0 ? newRect.x + newRect.width : newRect.x,
+      y: newRect.height < 0 ? newRect.y + newRect.height : newRect.y,
     };
 
-    if (finalized.width > 5 && finalized.height > 5) {
-      setAnnotations([...annotations, finalized]);
+    if (rect.width > 5 && rect.height > 5) {
+      setAnnotations([...annotations, rect]);
     }
 
     setNewRect(null);
@@ -126,30 +108,23 @@ function ImageCanvas({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       style={{
-        border: "2px solid #F3D9BE",
-        borderRadius: "8px",
+        border: "2px solid #ddd",
         background: "#fff",
-        cursor:
-          scale > 1
-            ? isPanning
-              ? "grabbing"
-              : "grab"
-            : "crosshair",
+        cursor: scale > 1 ? (isPanning ? "grabbing" : "grab") : "crosshair",
       }}
     >
       <Layer>
         {img && <KonvaImage image={img} />}
 
-        {/* Existing boxes */}
-        {annotations.map((ann, i) => (
+        {annotations.map((a, i) => (
           <Rect
             key={i}
-            x={ann.x}
-            y={ann.y}
-            width={ann.width}
-            height={ann.height}
-            fill={(ann.color || "#e6194b") + "33"}
-            stroke={ann.color || "#e6194b"}
+            x={a.x}
+            y={a.y}
+            width={a.width}
+            height={a.height}
+            fill={(a.color || "#000") + "33"}
+            stroke={a.color || "#000"}
             strokeWidth={2}
             draggable
             onDragEnd={(e) => {
@@ -164,7 +139,6 @@ function ImageCanvas({
           />
         ))}
 
-        {/* New drawing preview */}
         {newRect && (
           <Rect
             x={
@@ -180,7 +154,7 @@ function ImageCanvas({
             width={Math.abs(newRect.width)}
             height={Math.abs(newRect.height)}
             fill="rgba(0,0,0,0.1)"
-            stroke="#e6194b"
+            stroke={newRect.color}
             strokeWidth={2}
           />
         )}
