@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, forwardRef } from "react";
 import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
@@ -18,15 +18,22 @@ const VIOLATION_COLORS = {
   "Abandoned / Unsafe": "#800000",
 };
 
-function ImageCanvas({ image, annotations, setAnnotations, selectedViolation, stageRef }) {
+const ImageCanvas = forwardRef(
+(
+  { image, annotations, setAnnotations, selectedViolation },
+  stageRef
+) => {
   const [img] = useImage(image);
+
   const [newRect, setNewRect] = useState(null);
+
+  // ZOOM + PAN STATE
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
 
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
-    if (!stage) return;
     const pos = stage.getPointerPosition();
-    if (!pos) return;
 
     setNewRect({
       x: pos.x,
@@ -40,42 +47,83 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation, st
 
   const handleMouseMove = (e) => {
     if (!newRect) return;
-    const stage = e.target.getStage();
-    if (!stage) return;
-    const pos = stage.getPointerPosition();
-    if (!pos) return;
 
-    setNewRect({ ...newRect, width: pos.x - newRect.x, height: pos.y - newRect.y });
+    const stage = e.target.getStage();
+    const pos = stage.getPointerPosition();
+
+    setNewRect({
+      ...newRect,
+      width: pos.x - newRect.x,
+      height: pos.y - newRect.y,
+    });
   };
 
   const handleMouseUp = () => {
     if (!newRect) return;
 
-    if (Math.abs(newRect.width) > 5 && Math.abs(newRect.height) > 5) {
-      const finalizedRect = {
-        ...newRect,
-        width: Math.abs(newRect.width),
-        height: Math.abs(newRect.height),
-        x: newRect.width < 0 ? newRect.x + newRect.width : newRect.x,
-        y: newRect.height < 0 ? newRect.y + newRect.height : newRect.y,
-      };
-      setAnnotations([...annotations, finalizedRect]);
+    const rect = {
+      ...newRect,
+      x: Math.min(newRect.x, newRect.x + newRect.width),
+      y: Math.min(newRect.y, newRect.y + newRect.height),
+      width: Math.abs(newRect.width),
+      height: Math.abs(newRect.height),
+    };
+
+    if (rect.width > 5 && rect.height > 5) {
+      setAnnotations([...annotations, rect]);
     }
+
     setNewRect(null);
+  };
+
+  // ZOOM
+  const handleWheel = (e) => {
+    e.evt.preventDefault();
+    const scaleBy = 1.1;
+
+    const stage = e.target.getStage();
+    const pointer = stage.getPointerPosition();
+
+    const oldScale = scale;
+
+    const mousePointTo = {
+      x: (pointer.x - position.x) / oldScale,
+      y: (pointer.y - position.y) / oldScale,
+    };
+
+    const newScale =
+      e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
+
+    setScale(newScale);
+
+    setPosition({
+      x: pointer.x - mousePointTo.x * newScale,
+      y: pointer.y - mousePointTo.y * newScale,
+    });
   };
 
   return (
     <Stage
-      width={img ? img.width : 800}
-      height={img ? img.height : 600}
+      ref={stageRef}
+      width={900}
+      height={600}
+      scaleX={scale}
+      scaleY={scale}
+      x={position.x}
+      y={position.y}
+      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      ref={stageRef}
-      style={{ border: "2px solid #F3D9BE", borderRadius: "8px", background: "#fff", cursor: "crosshair" }}
+      style={{
+        border: "2px solid #ddd",
+        background: "#fff",
+        cursor: "crosshair",
+      }}
     >
       <Layer>
         {img && <KonvaImage image={img} />}
+
         {annotations.map((ann, i) => (
           <Rect
             key={i}
@@ -88,40 +136,27 @@ function ImageCanvas({ image, annotations, setAnnotations, selectedViolation, st
             strokeWidth={2}
             draggable
             onDragEnd={(e) => {
-              const newAnnotations = [...annotations];
-              newAnnotations[i] = { ...newAnnotations[i], x: e.target.x(), y: e.target.y() };
-              setAnnotations(newAnnotations);
-            }}
-            onTransformEnd={(e) => {
-              const node = e.target;
-              const newAnnotations = [...annotations];
-              newAnnotations[i] = {
-                ...newAnnotations[i],
-                x: node.x(),
-                y: node.y(),
-                width: node.width() * node.scaleX(),
-                height: node.height() * node.scaleY(),
-              };
-              node.scaleX(1);
-              node.scaleY(1);
-              setAnnotations(newAnnotations);
+              const copy = [...annotations];
+              copy[i].x = e.target.x();
+              copy[i].y = e.target.y();
+              setAnnotations(copy);
             }}
           />
         ))}
+
         {newRect && (
           <Rect
-            x={newRect.width < 0 ? newRect.x + newRect.width : newRect.x}
-            y={newRect.height < 0 ? newRect.y + newRect.height : newRect.y}
+            x={Math.min(newRect.x, newRect.x + newRect.width)}
+            y={Math.min(newRect.y, newRect.y + newRect.height)}
             width={Math.abs(newRect.width)}
             height={Math.abs(newRect.height)}
             fill={newRect.color + "33"}
             stroke={newRect.color}
-            strokeWidth={2}
           />
         )}
       </Layer>
     </Stage>
   );
-}
+});
 
 export default ImageCanvas;
