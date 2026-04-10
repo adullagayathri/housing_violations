@@ -6,19 +6,30 @@ import UploadPanel from "./components/UploadPanel";
 import SaveControls from "./components/SaveControls";
 import "./App.css";
 
+// Universal color map
+const VIOLATION_COLORS = {
+  "Peeling Paint": "#FF0000",
+  "Vehicles on Unpaved": "#00FF00",
+  "Abandoned/Junk Vehicles": "#0000FF",
+  "Overgrown Vegetation": "#FFA500",
+  "Bad Roof": "#800080",
+  "Broken Window": "#008080",
+  "Broken Door": "#FFC0CB",
+  "Rubbish / Garbage": "#808080",
+  "Damaged Walk/Driveway": "#000000",
+  "Damaged Siding / Soffit": "#00FFFF",
+  "Damaged Foundation": "#800000",
+  "Damaged Porch / Steps": "#008000",
+  "Abandoned / Unsafe": "#800000",
+};
+
 function App() {
   const [images, setImages] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
-
-  // IMPORTANT: NO DEFAULT SELECTION
-  const [selectedViolation, setSelectedViolation] = useState(null);
-
+  const [selectedViolation, setSelectedViolation] = useState("Peeling Paint");
   const [annotations, setAnnotations] = useState([]);
   const [imageSource, setImageSource] = useState("Upload Images");
 
-  const [zoom, setZoom] = useState(1);
-
-  // SINGLE SOURCE OF TRUTH FOR EXPORT
   const stageRef = useRef(null);
 
   const handleClearAll = () => {
@@ -28,36 +39,19 @@ function App() {
   };
 
   const handleUndo = () => {
-    setAnnotations((prev) => prev.slice(0, -1));
+    setAnnotations((prev) => prev.slice(0, prev.length - 1));
   };
 
-  // SAFE EXPORT FUNCTION
   const getCanvasBase64 = () => {
-    try {
-      if (!stageRef.current) return null;
-
-      const dataURL = stageRef.current.toDataURL({
-        pixelRatio: 2,
-      });
-
-      if (!dataURL) return null;
-
-      return dataURL.split(",")[1];
-    } catch (err) {
-      console.error("Export error:", err);
-      return null;
-    }
+    if (!stageRef.current) return null;
+    return stageRef.current.toDataURL({ pixelRatio: 1 }).split(",")[1]; // base64 only
   };
 
   const handleSaveJSON = () => {
     if (!selectedImage) return;
 
     const annotatedImageBase64 = getCanvasBase64();
-
-    if (!annotatedImageBase64) {
-      alert("❌ No image to save!");
-      return;
-    }
+    if (!annotatedImageBase64) return alert("No image to save!");
 
     fetch("https://housing-violations.onrender.com/save", {
       method: "POST",
@@ -75,61 +69,45 @@ function App() {
         image_base64: annotatedImageBase64,
       }),
     })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Save failed");
-        return data;
-      })
-      .then((data) => {
-        alert(`✅ Saved successfully!\nRecord ID: ${data.recordId}`);
-      })
-      .catch((err) => {
-        alert("❌ Error saving: " + err.message);
-      });
+      .then((res) => res.json())
+      .then(() => alert("✅ Saved to Salesforce!"))
+      .catch((err) => alert("❌ Error saving to Salesforce: " + err));
   };
 
   return (
     <div className="App">
       <h1>🏠 House Issue Marking Tool</h1>
+      <p>Upload house images, choose a violation, draw a box, and save all violations.</p>
 
-      {/* HELP */}
       <div className="help-box">
-        <h3>🧓 Simple Instructions</h3>
-        <p>1. Select a violation type</p>
-        <p>2. Select image</p>
-        <p>3. Draw boxes on image</p>
-        <p>4. Drag boxes to move them</p>
-        <p>5. Use zoom buttons if needed</p>
-        <p>6. Click undo if mistake</p>
-        <p style={{ color: "red", fontWeight: "bold" }}>
-          ⚠️ Always click SAVE after finishing
-        </p>
+        <b>How to use:</b><br />
+        1. Upload images or load from folder<br />
+        2. Choose an image<br />
+        3. Choose a violation<br />
+        4. Draw rectangles → auto added<br />
+        5. Undo if needed<br />
+        6. Click <b>Save JSON</b>
       </div>
 
-      {/* IMAGE SOURCE */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: "20px" }}>
         <label>
           <input
             type="radio"
             value="Upload Images"
             checked={imageSource === "Upload Images"}
             onChange={(e) => setImageSource(e.target.value)}
-          />
-          Upload Images
+          /> Upload Images
         </label>
-
-        <label style={{ marginLeft: 20 }}>
+        <label style={{ marginLeft: "20px" }}>
           <input
             type="radio"
             value="Load From Folder"
             checked={imageSource === "Load From Folder"}
             onChange={(e) => setImageSource(e.target.value)}
-          />
-          Load From Folder
+          /> Load From Folder
         </label>
       </div>
 
-      {/* UPLOAD */}
       {imageSource && (
         <UploadPanel
           images={images}
@@ -138,35 +116,22 @@ function App() {
         />
       )}
 
-      {/* IMAGE SELECT */}
       {Object.keys(images).length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <label><b>Select Image:</b></label>
+        <div style={{ marginBottom: "20px" }}>
+          <label htmlFor="image-select"><b>Choose Image:</b> </label>
           <select
-            value={selectedImage || ""}
+            id="image-select"
+            value={selectedImage}
             onChange={(e) => setSelectedImage(e.target.value)}
-            style={{ marginLeft: 10 }}
+            style={{ padding: "6px", marginLeft: "10px" }}
           >
-            {Object.keys(images).map((img) => (
-              <option key={img} value={img}>
-                {img}
-              </option>
+            {Object.keys(images).map((imgName) => (
+              <option key={imgName} value={imgName}>{imgName}</option>
             ))}
           </select>
         </div>
       )}
 
-      {/* ZOOM */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-        <button onClick={() => setZoom((z) => Math.min(z + 0.2, 5))}>
-          🔍 Zoom In
-        </button>
-        <button onClick={() => setZoom((z) => Math.max(z - 0.2, 0.05))}>
-          🔎 Zoom Out
-        </button>
-      </div>
-
-      {/* MAIN */}
       <div className="main-content">
         <ViolationToolbar
           selectedViolation={selectedViolation}
@@ -176,12 +141,11 @@ function App() {
         <div className="canvas-panel">
           {selectedImage && (
             <ImageCanvas
-              stageRef={stageRef}
               image={images[selectedImage]}
               annotations={annotations}
               setAnnotations={setAnnotations}
               selectedViolation={selectedViolation}
-              zoom={zoom}
+              stageRef={stageRef}
             />
           )}
 
