@@ -15,21 +15,28 @@ function ImageCanvas({
   const [img] = useImage(image);
   const [newRect, setNewRect] = useState(null);
 
-  const getPointer = (stage) => {
-    const p = stage.getPointerPosition();
-    return p ? { x: p.x / scale, y: p.y / scale } : null;
+  // ✅ FIXED: proper coordinate transform (NO SCALE MATH)
+  const getRelativePointer = (stage) => {
+    const point = stage.getPointerPosition();
+    if (!point) return null;
+
+    const transform = stage.getAbsoluteTransform().copy();
+    transform.invert();
+
+    return transform.point(point);
   };
 
+  // ---------------- Mouse Down ----------------
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
     if (!stage) return;
 
-    // MOVE MODE disables drawing
+    // MOVE MODE → no drawing
     if (moveMode) return;
 
     if (!selectedViolation) return;
 
-    const pos = getPointer(stage);
+    const pos = getRelativePointer(stage);
     if (!pos) return;
 
     setNewRect({
@@ -42,13 +49,14 @@ function ImageCanvas({
     });
   };
 
+  // ---------------- Mouse Move ----------------
   const handleMouseMove = (e) => {
     if (moveMode) return;
 
     const stage = e.target.getStage();
     if (!stage || !newRect) return;
 
-    const pos = getPointer(stage);
+    const pos = getRelativePointer(stage);
     if (!pos) return;
 
     setNewRect({
@@ -58,6 +66,7 @@ function ImageCanvas({
     });
   };
 
+  // ---------------- Mouse Up ----------------
   const handleMouseUp = () => {
     if (moveMode) return;
     if (!newRect) return;
@@ -97,6 +106,7 @@ function ImageCanvas({
       <Layer>
         {img && <KonvaImage image={img} />}
 
+        {/* EXISTING ANNOTATIONS */}
         {annotations.map((a, i) => (
           <Rect
             key={i}
@@ -120,18 +130,11 @@ function ImageCanvas({
           />
         ))}
 
+        {/* NEW RECT PREVIEW */}
         {newRect && (
           <Rect
-            x={
-              newRect.width < 0
-                ? newRect.x + newRect.width
-                : newRect.x
-            }
-            y={
-              newRect.height < 0
-                ? newRect.y + newRect.height
-                : newRect.y
-            }
+            x={newRect.width < 0 ? newRect.x + newRect.width : newRect.x}
+            y={newRect.height < 0 ? newRect.y + newRect.height : newRect.y}
             width={Math.abs(newRect.width)}
             height={Math.abs(newRect.height)}
             fill="rgba(0,0,0,0.1)"
