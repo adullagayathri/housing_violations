@@ -24,15 +24,12 @@ const VIOLATION_COLORS = {
 function App() {
   const [images, setImages] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
-  const [selectedViolation, setSelectedViolation] = useState(""); // ✅ no default
+  const [selectedViolation, setSelectedViolation] = useState("");
   const [annotations, setAnnotations] = useState([]);
-  const [imageSource, setImageSource] = useState("Upload Images");
-
   const [scale, setScale] = useState(1);
 
   const stageRef = useRef(null);
 
-  // reset zoom when image changes
   useEffect(() => {
     setScale(1);
   }, [selectedImage]);
@@ -41,10 +38,11 @@ function App() {
     setImages({});
     setSelectedImage(null);
     setAnnotations([]);
+    setSelectedViolation("");
   };
 
   const handleUndo = () => {
-    setAnnotations((prev) => prev.slice(0, prev.length - 1));
+    setAnnotations((prev) => prev.slice(0, -1));
   };
 
   const getCanvasBase64 = () => {
@@ -63,19 +61,12 @@ function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         image_id: selectedImage,
-        annotations: annotations.map((a) => ({
-          violation: a.violation,
-          x: a.x,
-          y: a.y,
-          width: a.width,
-          height: a.height,
-          color: a.color,
-        })),
+        annotations: annotations,
         image_base64: annotatedImageBase64,
       }),
     })
       .then((res) => res.json())
-      .then(() => alert("✅ Saved to Salesforce!"))
+      .then(() => alert("✅ Saved successfully!"))
       .catch((err) => alert("❌ Error saving: " + err));
   };
 
@@ -83,25 +74,13 @@ function App() {
     <div className="App">
       <h1>🏠 House Issue Marking Tool</h1>
 
-      {/* HELP BOX */}
       <div className="help-box">
         <b>How to use:</b><br />
         1. Upload images<br />
         2. Select image<br />
-        3. Choose violation from left panel<br />
-        4. Draw bounding box<br />
-        5. Save results
-
-        <div style={{
-          marginTop: "10px",
-          padding: "10px",
-          background: "#fff3cd",
-          border: "1px solid #ffeeba",
-          borderRadius: "6px",
-          fontWeight: "bold"
-        }}>
-          ⚠️ Don’t forget to SAVE before switching images!
-        </div>
+        3. Select violation<br />
+        4. Draw boxes<br />
+        5. Save
       </div>
 
       {/* UPLOAD */}
@@ -111,46 +90,26 @@ function App() {
         setSelectedImage={setSelectedImage}
       />
 
-      {/* IMAGE SELECTOR */}
+      {/* IMAGE SELECT */}
       {Object.keys(images).length > 0 && (
         <div style={{ marginBottom: "20px" }}>
-          <label style={{ fontWeight: "bold", fontSize: "16px" }}>
-            Change Image Here:
-          </label>
-
-          <br />
-
+          <label><b>Change Image:</b></label>
           <select
             value={selectedImage}
             onChange={(e) => setSelectedImage(e.target.value)}
-            style={{
-              marginTop: "8px",
-              padding: "10px",
-              fontSize: "16px",
-              width: "320px",
-              borderRadius: "6px",
-            }}
+            style={{ marginLeft: "10px", padding: "8px", width: "300px" }}
           >
             {Object.keys(images).map((img) => (
-              <option key={img} value={img}>
-                {img}
-              </option>
+              <option key={img} value={img}>{img}</option>
             ))}
           </select>
         </div>
       )}
 
-      {/* MAIN LAYOUT */}
-      <div className="main-content" style={{ display: "flex" }}>
+      <div style={{ display: "flex" }}>
 
         {/* LEFT SIDEBAR */}
-        <div
-          style={{
-            width: "260px",
-            borderRight: "1px solid #ddd",
-            padding: "10px",
-          }}
-        >
+        <div style={{ width: "260px", borderRight: "1px solid #ddd", padding: "10px" }}>
           <h3>Violations</h3>
 
           {Object.keys(VIOLATION_COLORS).map((v) => (
@@ -161,23 +120,20 @@ function App() {
                 display: "flex",
                 alignItems: "center",
                 padding: "8px",
-                marginBottom: "6px",
                 cursor: "pointer",
                 borderRadius: "6px",
                 border:
                   selectedViolation === v
                     ? "1px solid #999"
                     : "1px solid transparent",
-                background: "transparent",
               }}
             >
-              {/* color circle */}
               <div
                 style={{
                   width: "12px",
                   height: "12px",
                   borderRadius: "50%",
-                  backgroundColor: VIOLATION_COLORS[v],
+                  background: VIOLATION_COLORS[v],
                   marginRight: "10px",
                 }}
               />
@@ -186,8 +142,8 @@ function App() {
           ))}
         </div>
 
-        {/* RIGHT CANVAS */}
-        <div className="canvas-panel" style={{ flex: 1, padding: "10px" }}>
+        {/* RIGHT PANEL */}
+        <div style={{ flex: 1, padding: "10px" }}>
 
           {/* ZOOM */}
           <div style={{ marginBottom: "10px" }}>
@@ -212,6 +168,7 @@ function App() {
               selectedViolation={selectedViolation}
               stageRef={stageRef}
               scale={scale}
+              VIOLATION_COLORS={VIOLATION_COLORS}
             />
           )}
 
