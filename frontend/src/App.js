@@ -65,7 +65,13 @@ function App() {
         alert(`✅ Saved successfully!\nRecord ID: ${data.recordId}`);
       })
       .catch((err) => {
-        alert("❌ Error saving: " + err.message);
+        console.log("❌ FULL ERROR:", err);
+        console.log("❌ RESPONSE DATA:", err?.response?.data);
+      
+        alert(
+          "❌ Error saving:\n" +
+          JSON.stringify(err?.response?.data || err, null, 2)
+        );
       });
   };
 
