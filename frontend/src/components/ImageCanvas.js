@@ -24,7 +24,7 @@ function ImageCanvas({
     const stage = e.target.getStage();
     if (!stage) return;
 
-    // MOVE MODE = allow dragging only
+    // MOVE MODE disables drawing
     if (moveMode) return;
 
     if (!selectedViolation) return;
@@ -83,7 +83,7 @@ function ImageCanvas({
       height={img ? img.height : 600}
       scaleX={scale}
       scaleY={scale}
-      draggable={moveMode}   // ✅ ONLY MOVE MODE DRAGS
+      draggable={moveMode}
       ref={stageRef}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
