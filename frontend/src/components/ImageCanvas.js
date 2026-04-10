@@ -2,22 +2,6 @@ import React, { useState } from "react";
 import { Stage, Layer, Rect, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
-const VIOLATION_COLORS = {
-  "Peeling Paint": "#e6194b",
-  "Vehicles on Unpaved": "#3cb44b",
-  "Abandoned/Junk Vehicles": "#4363d8",
-  "Overgrown Vegetation": "#f58231",
-  "Bad Roof": "#911eb4",
-  "Broken Window": "#46f0f0",
-  "Broken Door": "#f032e6",
-  "Rubbish / Garbage": "#bcf60c",
-  "Damaged Walk/Driveway": "#fabebe",
-  "Damaged Siding / Soffit": "#008080",
-  "Damaged Foundation": "#e6beff",
-  "Damaged Porch / Steps": "#9a6324",
-  "Abandoned / Unsafe": "#fffac8",
-};
-
 function ImageCanvas({
   image,
   annotations,
@@ -30,46 +14,47 @@ function ImageCanvas({
   const [newRect, setNewRect] = useState(null);
   const [isPanning, setIsPanning] = useState(false);
 
-  // ✅ Adjust pointer for zoom
-  const getScaledPointer = (stage) => {
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return null;
+  // Convert pointer based on zoom
+  const getPointer = (stage) => {
+    const p = stage.getPointerPosition();
+    if (!p) return null;
 
     return {
-      x: pointer.x / scale,
-      y: pointer.y / scale,
+      x: p.x / scale,
+      y: p.y / scale,
     };
   };
 
-  // 🖱️ Mouse Down
+  // ---------------- Mouse Down ----------------
   const handleMouseDown = (e) => {
     const stage = e.target.getStage();
     if (!stage) return;
 
-    // 👉 If clicked empty canvas → PAN MODE
-    if (e.target === stage) {
-      if (scale > 1) setIsPanning(true);
+    // 🖐️ PAN MODE (only when clicking empty space)
+    if (e.target.getClassName() === "Stage") {
+      if (scale > 1) {
+        setIsPanning(true);
+      }
       return;
     }
 
-    // ❌ Must select violation
+    // ❌ must select violation
     if (!selectedViolation) return;
 
-    const pos = getScaledPointer(stage);
+    const pos = getPointer(stage);
     if (!pos) return;
 
-    // ✏️ Start drawing
     setNewRect({
       x: pos.x,
       y: pos.y,
       width: 0,
       height: 0,
       violation: selectedViolation,
-      color: VIOLATION_COLORS[selectedViolation] || "#e6194b",
+      color: "#e6194b", // default safe fallback (actual color handled in App)
     });
   };
 
-  // 🖱️ Mouse Move
+  // ---------------- Mouse Move ----------------
   const handleMouseMove = (e) => {
     const stage = e.target.getStage();
     if (!stage) return;
@@ -90,7 +75,7 @@ function ImageCanvas({
     // ✏️ DRAW MODE
     if (!newRect) return;
 
-    const pos = getScaledPointer(stage);
+    const pos = getPointer(stage);
     if (!pos) return;
 
     setNewRect({
@@ -100,9 +85,8 @@ function ImageCanvas({
     });
   };
 
-  // 🖱️ Mouse Up
+  // ---------------- Mouse Up ----------------
   const handleMouseUp = () => {
-    // Stop panning
     if (isPanning) {
       setIsPanning(false);
       return;
@@ -110,17 +94,22 @@ function ImageCanvas({
 
     if (!newRect) return;
 
-    // Save rectangle
-    if (Math.abs(newRect.width) > 5 && Math.abs(newRect.height) > 5) {
-      const finalizedRect = {
-        ...newRect,
-        width: Math.abs(newRect.width),
-        height: Math.abs(newRect.height),
-        x: newRect.width < 0 ? newRect.x + newRect.width : newRect.x,
-        y: newRect.height < 0 ? newRect.y + newRect.height : newRect.y,
-      };
+    const finalized = {
+      ...newRect,
+      width: Math.abs(newRect.width),
+      height: Math.abs(newRect.height),
+      x:
+        newRect.width < 0
+          ? newRect.x + newRect.width
+          : newRect.x,
+      y:
+        newRect.height < 0
+          ? newRect.y + newRect.height
+          : newRect.y,
+    };
 
-      setAnnotations([...annotations, finalizedRect]);
+    if (finalized.width > 5 && finalized.height > 5) {
+      setAnnotations([...annotations, finalized]);
     }
 
     setNewRect(null);
@@ -132,10 +121,10 @@ function ImageCanvas({
       height={img ? img.height : 600}
       scaleX={scale}
       scaleY={scale}
+      ref={stageRef}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      ref={stageRef}
       style={{
         border: "2px solid #F3D9BE",
         borderRadius: "8px",
@@ -151,7 +140,7 @@ function ImageCanvas({
       <Layer>
         {img && <KonvaImage image={img} />}
 
-        {/* Existing Annotations */}
+        {/* Existing boxes */}
         {annotations.map((ann, i) => (
           <Rect
             key={i}
@@ -159,31 +148,39 @@ function ImageCanvas({
             y={ann.y}
             width={ann.width}
             height={ann.height}
-            fill={ann.color + "33"}
-            stroke={ann.color}
+            fill={(ann.color || "#e6194b") + "33"}
+            stroke={ann.color || "#e6194b"}
             strokeWidth={2}
             draggable
             onDragEnd={(e) => {
-              const newAnnotations = [...annotations];
-              newAnnotations[i] = {
-                ...newAnnotations[i],
+              const updated = [...annotations];
+              updated[i] = {
+                ...updated[i],
                 x: e.target.x(),
                 y: e.target.y(),
               };
-              setAnnotations(newAnnotations);
+              setAnnotations(updated);
             }}
           />
         ))}
 
-        {/* New Rectangle Preview */}
+        {/* New drawing preview */}
         {newRect && (
           <Rect
-            x={newRect.width < 0 ? newRect.x + newRect.width : newRect.x}
-            y={newRect.height < 0 ? newRect.y + newRect.height : newRect.y}
+            x={
+              newRect.width < 0
+                ? newRect.x + newRect.width
+                : newRect.x
+            }
+            y={
+              newRect.height < 0
+                ? newRect.y + newRect.height
+                : newRect.y
+            }
             width={Math.abs(newRect.width)}
             height={Math.abs(newRect.height)}
-            fill={newRect.color + "33"}
-            stroke={newRect.color}
+            fill="rgba(0,0,0,0.1)"
+            stroke="#e6194b"
             strokeWidth={2}
           />
         )}
